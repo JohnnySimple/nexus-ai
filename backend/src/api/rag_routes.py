@@ -4,7 +4,8 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Optional, Dict, Any
 import logging
 
-from src.schemas.rag_schema import DocumentIngestRequest, DocumentIngestResponse, Status, DocumentListResponse
+from src.schemas.rag_schema import DocumentIngestRequest, DocumentIngestResponse,\
+    Status, DocumentListResponse, DocumentQueryRequest
 from src.services.rag_service import RagService
 
 logger = logging.getLogger(__name__)
@@ -54,3 +55,46 @@ async def list_documents(limit: int = 50, offset: int = 0):
     except Exception as e:
         logger.error(f"Failed to list documents: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list documents: {str(e)}")
+    
+@router.delete("/documents/{document_id}")
+async def delete_document(document_id: str):
+    """Delete a document from the RAG system."""
+    try:
+        success = await rag_service.delete_document(document_id)
+        if success:
+            return {"status": "Document deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Document not found")
+    except Exception as e:
+        logger.error(f"Failed to delete document: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
+
+@router.post("query", response_model=Dict)
+async def query_documents(request: DocumentQueryRequest):
+    """Query documents in the RAG system."""
+    results = await rag_service.query_documents(
+        query=request.query,
+        top_k=request.top_k,
+        document_ids=request.document_ids
+    )
+
+    # sort all the relevant chunks by score and return top_k
+    # all_relevant_chunks = [(doc_id, page_num, chunk_text, score), ...]
+    all_relevant_chunks = []
+    for res in results:
+        all_relevant_chunks.extend(res["relevant_chunks"])
+    all_relevant_chunks = sorted(all_relevant_chunks, key=lambda x: x[1], reverse=True)[:request.top_k]
+
+    # get top k chunks
+    top_chunks = all_relevant_chunks[:request.top_k]
+    print(f"all_relevant_chunks: {all_relevant_chunks}")
+
+    # results_content = "\n".join(f"- {chunk[0]}" for res in results for chunk in res["relevant_chunks"])
+    context = "\n".join(f"- {chunk[0]}" for res in top_chunks for chunk in res)
+
+    return {
+        "query": request.query,
+        "results": results,
+        # "results_content": results_content,
+        "context": context,
+    }

@@ -62,3 +62,21 @@ class RagService:
             return documents
         except Exception as e:
             logger.error(f"Failed to list documents: {e}")
+    
+    async def query_documents(self, query: str, top_k: int = 5, document_ids: list[str] = []):
+        """Query documents in the RAG system."""
+        try:
+            results = self.embedding_service.search(query, top_k, document_ids)
+            return results
+        except Exception as e:
+            logger.error(f"Document query failed: {e}")
+    
+    async def delete_document(self, document_id: str) -> bool:
+        """
+        Delete a document from the RAG system.
+        """
+        try:
+            return self.embedding_service.delete_embedding(document_id)
+        except Exception as e:
+            logger.error(f"Failed to delete document: {e}")
+            return False

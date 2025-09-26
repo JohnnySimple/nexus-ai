@@ -2,6 +2,7 @@
 import logging
 from sentence_transformers import SentenceTransformer
 import pickle
+import torch
 
 from src.config import settings
 
@@ -58,6 +59,15 @@ class Embeddings:
         except Exception as e:
             logger.error(f"could not save embedding: {e}")
             return
+
+    def save_all_embeddings(self, documents: list[dict]):
+        """Save all embeddings"""
+        try:
+            for document in documents:
+                self.save_embedding(document)
+        except Exception as e:
+            logger.error(f"could not save all embeddings: {e}")
+            return
         
     def load_embedding(self) -> list[float]:
         """
@@ -90,3 +100,66 @@ class Embeddings:
         except Exception as e:
             logger.error(f"Failed to load pickle files: {e}")
             return []
+
+    def delete_embedding(self, document_id: str) -> bool:
+        """Delete embedding file for the given document id"""
+        import os
+        try:
+            for file_name in os.listdir(self.storage_path):
+                if file_name.endswith(f"_{document_id}.pkl"):
+                    file_path = os.path.join(self.storage_path, file_name)
+                    os.remove(file_path)
+                    return True
+            return False
+        except Exception as e:
+            logger.error(f"Failed to delete embedding: {e}")
+            return False
+    
+    def similarity(self, vec1: list[float], vec2: list[float]) -> list[float]:
+        """Get similiarity between two vectors"""
+        return self.model.similarity(vec1, vec2)
+    
+    def get_top_similarities_from_page(self, query: str, page_texts_embeddings,
+                                       page_split, top_k: int = 5, document_id: str = "", page_number: int = 0) -> list[tuple]:
+        """Get answer to the query from the page texts embeddings"""
+        question_embedding = self.model.encode(query)
+        similarities = self.similarity(page_texts_embeddings, question_embedding)
+
+        sorted_similarities, indices = torch.sort(similarities, dim=0, descending=True)
+        top_similarities = sorted_similarities[:top_k]
+        top_indices = indices[:top_k]
+        top_values = similarities[top_indices]
+
+        top_similarities_answers = [page_split[i] if i < len(page_split) else None
+                                    for i in top_indices]
+
+        results =  [(ans, round(float(val), 4), document_id, page_number) for ans, val
+                    in zip(top_similarities_answers, top_values)]
+        return results
+
+    def search(self, query: str, top_k: int = 5, document_ids: list[str] = []) -> list[dict]:
+        """Search for similar chunks in all specified documents"""
+        loaded_embeddings = self.load_embedding()
+
+        potential_answers = []
+
+        for doc in loaded_embeddings:
+            if doc["id"] in document_ids:
+
+                similar_chunks = []
+                
+                for page_index, page_embedding in enumerate(doc["embedding"]):
+                    similarity = self.get_top_similarities_from_page(query, page_embedding, doc["chunks"][page_index], top_k,
+                                                                     document_id=doc["id"], page_number=page_index)
+                    similar_chunks.append(similarity)
+                
+                potential_answers.append({
+                    "document": {
+                        "id": doc["id"],
+                        "filename": doc["metadata"]["filename"],
+                        "metadata": doc["metadata"]
+                    },
+                    "relevant_chunks": similar_chunks
+                })
+
+        return potential_answers

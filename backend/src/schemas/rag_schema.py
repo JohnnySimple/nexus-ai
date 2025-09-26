@@ -23,3 +23,9 @@ class DocumentListResponse(BaseModel):
     content: str | List[dict]
     metadata: Dict[str, Any]
     created_at: str
+
+class DocumentQueryRequest(BaseModel):
+    query: str = Field(..., description="Query text")
+    top_k: int = Field(default=5, description="Number of results to return")
+    filter_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Metadata filters")
+    document_ids: List[str]

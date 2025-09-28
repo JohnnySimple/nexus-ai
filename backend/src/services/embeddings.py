@@ -1,6 +1,6 @@
 
 import logging
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 import pickle
 import torch
 
@@ -152,6 +152,9 @@ class Embeddings:
 
         potential_answers = []
 
+        if settings.RERANK_TOP_K:
+            top_k = top_k * 2
+
         for doc in loaded_embeddings:
             if doc["id"] in document_ids:
 
@@ -160,6 +163,10 @@ class Embeddings:
                 for page_index, page_embedding in enumerate(doc["embedding"]):
                     similarity = self.get_top_similarities_from_page(query, page_embedding, doc["chunks"][page_index], top_k,
                                                                      document_id=doc["id"], page_number=page_index)
+                    
+                    if settings.RERANK_TOP_K:
+                        similarity = self.rerank(query, similarity, top_k/2)
+
                     similar_chunks.append(similarity)
                 
                 potential_answers.append({
@@ -172,3 +179,19 @@ class Embeddings:
                 })
 
         return potential_answers
+    
+    def rerank(self, query: str, similarity, top_k) -> list[dict]:
+        """Rerank the top similar chunks using a cross-encoder model"""
+        reranker = CrossEncoder(settings.CROSS_ENCODER_MODEL)
+
+        pairs = [(query, chunk[0]) for chunk in similarity if chunk[0] is not None]
+        scores = reranker.predict(pairs).tolist()
+
+        for index, chunk in enumerate(similarity):
+            chunk = list(chunk)
+            chunk.append(scores[index])
+            similarity[index] = tuple(chunk)
+
+        reranked = sorted(similarity, key=lambda x: x[4], reverse=True)[:int(top_k)]  # x[4] is the new score
+
+        return reranked

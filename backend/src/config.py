@@ -23,6 +23,9 @@ class Config(CustomBaseSettings):
     EMBEDDING_STORAGE_PATH: str = "data/embeddings"
     SENTENCE_TRANSFORMER_MODEL: str = "all-MiniLM-L6-v2"
 
+    OLLAMA_API_URL: str = "http://localhost:11434"
+    OLLAMA_MODEL_MISTRAL: str = "mistral"
+
     CORS_ORIGINS: list[str] = ["*"]
     CORS_HEADERS: list[str] = ["*"]
 

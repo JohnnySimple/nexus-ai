@@ -123,3 +123,9 @@ def add_sentence_chunks_to_pages(pages_and_text: list[dict], chunk_size: int=10)
         
         return pages_and_text
 
+def get_rag_prompt_template() -> str:
+    """Get the RAG prompt template"""
+    return """You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
+Question: {question} 
+Context: {context} 
+Answer:"""

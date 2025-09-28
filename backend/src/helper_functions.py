@@ -1,6 +1,7 @@
 """Helper functions module"""
 
 import pymupdf
+from spacy.lang.en import English
 
 def get_file_type(file_name: str) -> str:
     """Get file type based on extension"""
@@ -44,6 +45,18 @@ def text_formatter(text: str) -> str:
     formatted_text = text.replace("\n", " ").strip()
     return formatted_text
 
+def split_list(input_list: list[str], slice_size: int=10) -> list[list[str]]:
+        """
+        Splits a list into smaller lists of a specified size.
+        For example, a list of 17 sentences would be split into two lists of [[10], [7]].
+        Args:
+            input_list (list): The list to be split.
+            slice_size (int): The size of each smaller list.
+        Returns:
+            list: A list of smaller lists.
+        """
+        return [input_list[i:i+slice_size] for i in range(0, len(input_list), slice_size)]
+
 def open_and_read_pdf(file_path: str) -> str:
     """
     Opens a PDF file and extracts text from each page.
@@ -73,3 +86,40 @@ def open_and_read_pdf(file_path: str) -> str:
 
     # return self.add_sentence_chunks_to_pages(pages_and_text, chunk_size=10)
     return pages_and_text
+
+def create_content_page_chunks(pages_and_text: list[dict]) -> list[dict]:
+    """
+    Splits the text of each page into sentences and adds them to the page dictionary.
+
+    Args:
+        pages_and_text (list): A list of dictionaries, each representing the text from a page.
+    Returns:
+        list: The updated list of dictionaries with sentences added.
+    """
+    nlp = English()
+    nlp.add_pipe("sentencizer")
+
+    for item in pages_and_text:
+        item["sentences"] = list(nlp(item["text"]).sents)
+        item["sentences"] = [str(sentence) for sentence in item["sentences"]]
+        item["page_sentence_count_spacy"] = len(item["sentences"])
+    
+    return pages_and_text
+
+def add_sentence_chunks_to_pages(pages_and_text: list[dict], chunk_size: int=10) -> list[dict]:
+        """
+        Splits the sentences of each page into chunks and adds them to the page dictionary.
+
+        Args:
+            pages_and_text (list): A list of dictionaries, each representing the text from a page.
+            chunk_size (int): The number of sentences per chunk.
+        Returns:
+            list: The updated list of dictionaries with sentence chunks added.
+        """
+
+        for item in pages_and_text:
+            item["sentence_chunks"] = split_list(input_list=item["sentences"], slice_size=chunk_size)
+            item["number_of_chunks"] = len(item["sentence_chunks"])
+        
+        return pages_and_text
+

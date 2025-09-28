@@ -17,7 +17,7 @@ class DocumentIngestResponse(BaseModel):
     document_id: str = Field(..., description="ID of the ingested document")
     status: Status
 
-class DocumentListResponse(BaseModel):
+class DocumentResponse(BaseModel):
     id: str
     filename: str
     content: str | List[dict]

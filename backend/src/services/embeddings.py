@@ -5,6 +5,7 @@ import pickle
 import torch
 
 from src.config import settings
+import src.helper_functions as helper_functions
 
 logger = logging.getLogger(__name__)
 
@@ -30,11 +31,19 @@ class Embeddings:
         try:
             embeddings = []
             chunks = []
-            for page in text:
-                splitted_text = self._split_text(page["text"])
-                page_embeddings = self.model.encode(splitted_text)
+
+            data = helper_functions.create_content_page_chunks(text)
+
+            # for page in text:
+            #     splitted_text = self._split_text(page["text"])
+            #     page_embeddings = self.model.encode(splitted_text)
+            #     embeddings.append(page_embeddings)
+            #     chunks.append(splitted_text)
+
+            for page in data:
+                page_embeddings = self.model.encode(page["sentences"])
                 embeddings.append(page_embeddings)
-                chunks.append(splitted_text)
+                chunks.append(page["sentences"])
 
             return {
                 "chunks": chunks,

@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 import logging
 
 from src.schemas.rag_schema import DocumentIngestRequest, DocumentIngestResponse,\
-    Status, DocumentListResponse, DocumentQueryRequest
+    Status, DocumentResponse, DocumentQueryRequest
 from src.services.rag_service import RagService
 from src.config import settings
 import src.helper_functions as helper_functions
@@ -47,21 +47,46 @@ async def ingest_document(request: DocumentIngestRequest):
         logger.error(f"Error ingesting document: {e}")
         return {"error": str(e)}
 
-@router.get("/documents", response_model=List[DocumentListResponse])
+@router.get("documents/{document_id}", response_model=Optional[DocumentResponse])
+async def get_document(document_id: str):
+    """Get a specific document by its ID."""
+    try:
+        documents = await rag_service.list_documents()
+        for doc in documents:
+            if doc["id"] == document_id:
+                return DocumentResponse(
+                    id=doc["id"],
+                    filename=doc["metadata"].get("filename", "Unknown"),
+                    content=[{"page_number": page["page_number"],
+                              "content": ''.join(page['text'])[:200] + "..." if len(''.join(page['text'])) > 200 else ''.join(page['text']),
+                              "chunks": doc["chunks"][page_index]}
+                              for page_index, page in enumerate(doc["content"])],
+                    metadata=doc["metadata"],
+                    created_at=doc["metadata"].get("created_at", "Unknown")
+                )
+        raise HTTPException(status_code=404, detail="Document not found")
+    except Exception as e:
+        logger.error(f"Failed to get document: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get document: {str(e)}")
+
+@router.get("/documents", response_model=List[DocumentResponse])
 async def list_documents(limit: int = 50, offset: int = 0):
     """List all ingested documents."""
     try:
         documents = await rag_service.list_documents(limit=limit, offset=offset)
         
         return [
-            DocumentListResponse(
+            DocumentResponse(
                 id=doc["id"],
                 filename=doc["metadata"].get("filename", "Unknown"),
-                content=[{"page_number": page["page_number"], "content": ''.join(page['text'])[:200] + "..." if len(''.join(page['text'])) > 200 else ''.join(page['text'])} for page in doc["content"]],
+                content=[{"page_number": page["page_number"],
+                          "content": ''.join(page['text'])[:200] + "..." if len(''.join(page['text'])) > 200 else ''.join(page['text']),
+                          "chunks": documents[doc_index]["chunks"][page_index]}
+                          for page_index, page in enumerate(doc["content"])],
                 metadata=doc["metadata"],
                 created_at=doc["metadata"].get("created_at", "Unknown")
             )
-            for doc in documents
+            for doc_index, doc in enumerate(documents)
         ]
         
     except Exception as e:

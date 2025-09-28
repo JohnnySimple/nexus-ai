@@ -7,6 +7,8 @@ import logging
 from src.schemas.rag_schema import DocumentIngestRequest, DocumentIngestResponse,\
     Status, DocumentListResponse, DocumentQueryRequest
 from src.services.rag_service import RagService
+from src.config import settings
+import src.helper_functions as helper_functions
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -17,12 +19,22 @@ rag_service = RagService()
 async def ingest_document(request: DocumentIngestRequest):
     """Ingest a document into the RAG system."""
     try:
+
+        doc_type = helper_functions.get_file_type(request.filename)
+
+        if doc_type not in settings.SUPPORTED_FILE_TYPES:
+            raise HTTPException(status_code=400, detail=f"Unsupported file type. Supported types are {settings.SUPPORTED_FILE_TYPES}.")
+        
+        content = helper_functions.get_file_content(request.filename)
+        
+        request.content = content
+
         paginated_data = rag_service.get_paginated_data(request.content)
 
         doc_id = await rag_service.ingest_document(
             content=paginated_data,
             metadata={
-                "filename": request.filename,
+                "filename": request.filename.split("/")[-1],
                 **(request.metadata or {})
             }
         )

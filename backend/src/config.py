@@ -26,6 +26,8 @@ class Config(CustomBaseSettings):
     CORS_ORIGINS: list[str] = ["*"]
     CORS_HEADERS: list[str] = ["*"]
 
+    SUPPORTED_FILE_TYPES: list[str] = ["txt", "pdf", "docx"]
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

@@ -10,7 +10,7 @@ class Status(enum.Enum):
 
 class DocumentIngestRequest(BaseModel):
     filename: str = Field(..., description="Name of the document")
-    content: str = Field(..., description="Text content of the document")
+    content: Optional[str] = Field(default=None, description="Text content of the document")
     metadata: Optional[Dict[str, Any]] = Field(default=None, description="Document metadata")
 
 class DocumentIngestResponse(BaseModel):

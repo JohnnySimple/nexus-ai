@@ -30,3 +30,17 @@ class DocumentQueryRequest(BaseModel):
     top_k: int = Field(default=5, description="Number of results to return")
     filter_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Metadata filters")
     document_ids: List[str]
+
+class QueryResults(BaseModel):
+    document: Dict
+    relevant_chunks: List[List[List]]
+
+class DocumentQueryResponse(BaseModel):
+    query: str
+    results: List[QueryResults]
+    context: str
+    final_prompt: Optional[str] = None
+    llm_response: Optional[str] = None
+
+
+    

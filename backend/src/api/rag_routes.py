@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 import logging
 
 from src.schemas.rag_schema import DocumentIngestRequest, DocumentIngestResponse,\
-    Status, DocumentResponse, DocumentQueryRequest
+    Status, DocumentResponse, DocumentQueryRequest, DocumentQueryResponse
 from src.schemas.chat_schema import ChatRequest
 
 from src.services.rag_service import RagService
@@ -108,7 +108,7 @@ async def delete_document(document_id: str):
         logger.error(f"Failed to delete document: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
-@router.post("/query", response_model=Dict)
+@router.post("/query", response_model=DocumentQueryResponse)
 async def query_documents(request: DocumentQueryRequest):
     """Query documents in the RAG system."""
     results = await rag_service.query_documents(
@@ -126,6 +126,10 @@ async def query_documents(request: DocumentQueryRequest):
 
     # get top k chunks
     top_chunks = all_relevant_chunks[:request.top_k]
+
+    # flatten top_chunks
+    # t_chunks = [chunk for sub in top_chunks for chunk in sub]
+
 
     # results_content = "\n".join(f"- {chunk[0]}" for res in results for chunk in res["relevant_chunks"])
     context = "\n".join(f"- {chunk[0]}" for res in top_chunks for chunk in res)

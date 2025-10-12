@@ -1,5 +1,9 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Any
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class CustomBaseSettings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -32,6 +36,14 @@ class Config(CustomBaseSettings):
     CORS_HEADERS: list[str] = ["*"]
 
     SUPPORTED_FILE_TYPES: list[str] = ["txt", "pdf", "docx"]
+
+    DB_USER: str = os.getenv("DB_USER")
+    DB_PASSWORD: str = os.getenv("DB_PASSWORD")
+    DB_NAME: str = os.getenv("DB_NAME")
+    DB_HOST: str = os.getenv("DB_HOST")
+    DB_PORT: str = os.getenv("DB_PORT")
+
+    DATABASE_URL: str = os.getenv("DATABASE_URL")
 
     class Config:
         env_file = ".env"

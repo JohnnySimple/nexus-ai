@@ -41,6 +41,3 @@ class DocumentQueryResponse(BaseModel):
     context: str
     final_prompt: Optional[str] = None
     llm_response: Optional[str] = None
-
-
-    

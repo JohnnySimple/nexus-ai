@@ -45,6 +45,8 @@ class Config(CustomBaseSettings):
 
     DATABASE_URL: str = os.getenv("DATABASE_URL")
 
+    USE_DB: bool = True
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

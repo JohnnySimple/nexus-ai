@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 import logging
 
 from src.schemas.rag_schema import DocumentIngestRequest, DocumentIngestResponse,\
-    Status, DocumentResponse, DocumentQueryRequest, DocumentQueryResponse
+    Status, DocumentResponse, DocumentQueryRequest, DocumentQueryResponse, ErrorResponse
 from src.schemas.chat_schema import ChatRequest
 
 from src.services.rag_service import RagService
@@ -48,6 +48,10 @@ async def ingest_document(request: DocumentIngestRequest):
     except Exception as e:
         logger.error(f"Error ingesting document: {e}")
         return {"error": str(e)}
+        # return ErrorResponse(
+        #     message=f"Error ingesting document: {str(e)}",
+        #     status=Status.FAILURE
+        # )
 
 @router.get("documents/{document_id}", response_model=Optional[DocumentResponse])
 async def get_document(document_id: str):
@@ -64,7 +68,10 @@ async def get_document(document_id: str):
                               "chunks": doc["chunks"][page_index]}
                               for page_index, page in enumerate(doc["content"])],
                     metadata=doc["metadata"],
-                    created_at=doc["metadata"].get("created_at", "Unknown")
+                    created_at=doc["metadata"].get("created_at", "Unknown"),
+                    # embeddings=[{"page_number": index,
+                    #              "embeddings": item.tolist()}
+                    #             for index, item in enumerate(doc["embedding"])]
                 )
         raise HTTPException(status_code=404, detail="Document not found")
     except Exception as e:

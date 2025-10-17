@@ -34,18 +34,22 @@ class RagService:
         """
         Ingest a document into the RAG system.
         """
-        document_id = str(uuid.uuid4())
-        metadata["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        try:
+            document_id = str(uuid.uuid4())
+            metadata["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
 
-        document = {
-            "id": document_id,
-            "content": content,
-            "metadata": metadata
-        }
+            document = {
+                "id": document_id,
+                "content": content,
+                "metadata": metadata
+            }
 
-        self.embedding_service.save_embedding(document)
+            await self.embedding_service.save_embedding(document)
 
-        return document_id
+            return document_id
+        except Exception as e:
+            logger.error(f"Document ingestion failed: {e}")
+            raise e
     
 
     async def list_documents(self, limit: int = 50, offset: int = 0) -> list[dict]:

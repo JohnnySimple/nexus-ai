@@ -7,6 +7,11 @@ import torch
 from src.config import settings
 import src.helper_functions as helper_functions
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.crud.document_crud import (create_document, create_document_with_pages_and_embeddings)
+from src.db.models import Document, Page, ChunkEmbedding
+
+
 logger = logging.getLogger(__name__)
 
 class Embeddings:
@@ -53,7 +58,7 @@ class Embeddings:
             logger.error(f"An error occurred embedding document: {e}")
 
 
-    def save_embedding(self, document):
+    async def save_embedding(self, document):
         """"
         Save embedding
         """
@@ -61,13 +66,49 @@ class Embeddings:
             embedding = self.create_embedding(document["content"])
             document["embedding"] = embedding["embeddings"]
             document["chunks"] = embedding["chunks"]
-            
-            file_path = self.get_file_path(file_name=document["metadata"]["filename"], document_id=document["id"])
-            with open(file_path, 'wb') as f:
-                pickle.dump([document], f)
+
+            # if specified persist the document in db
+            if settings.USE_DB:
+                from src.db.database import get_session
+                
+                async for session in get_session():
+                    db_document = Document(
+                        id=document["id"],
+                        filename=document["metadata"]["filename"],
+                        created_at=document["metadata"]["created_at"]
+                    )
+
+                    pages = []
+                    for page_content, page_embeddings, chunk_list in zip(document["content"], document["embedding"], document["chunks"]):
+                        single_page = Page(
+                            page_number=page_content["page_number"],
+                            text=page_content["text"],
+                            sentence_count=len(self._split_text(page_content["text"]))
+                            )
+
+                        single_page_embeddings = []
+                        for chunk_text, embedding_vector in zip(chunk_list, page_embeddings):
+                            single_chunk_embedding = ChunkEmbedding(
+                                chunk_text=chunk_text,
+                                embedding=embedding_vector
+                            )
+                            single_page_embeddings.append(single_chunk_embedding)
+
+                        pages.append({
+                            "page": single_page,
+                            "embeddings": single_page_embeddings
+                            })
+
+                    await create_document_with_pages_and_embeddings(session, db_document, pages)
+            else:
+                # else store as pickle file
+                file_path = self.get_file_path(file_name=document["metadata"]["filename"], document_id=document["id"])
+                with open(file_path, 'wb') as f:
+                    pickle.dump([document], f)
+
         except Exception as e:
             logger.error(f"could not save embedding: {e}")
-            return
+            raise e
 
     def save_all_embeddings(self, documents: list[dict]):
         """Save all embeddings"""

@@ -23,6 +23,7 @@ class DocumentResponse(BaseModel):
     content: str | List[dict]
     metadata: Dict[str, Any]
     created_at: str
+    # embeddings: Optional[List[Dict[str, Any]]] = None
 
 class DocumentQueryRequest(BaseModel):
     query: str = Field(..., description="Query text")
@@ -41,3 +42,7 @@ class DocumentQueryResponse(BaseModel):
     context: str
     final_prompt: Optional[str] = None
     llm_response: Optional[str] = None
+
+class ErrorResponse(BaseModel):
+    message: str
+    status: Status

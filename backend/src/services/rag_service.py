@@ -5,6 +5,10 @@ import time
 import uuid
 import logging
 
+from src.config import settings
+from src.crud.document_crud import get_all_documents, get_document_by_id
+from sqlalchemy.ext.asyncio import AsyncSession
+
 logger = logging.getLogger(__name__)
 
 class RagService:
@@ -57,15 +61,50 @@ class RagService:
         List all ingested documents
         """
 
-        documents = []
+        if settings.USE_DB:
+            from src.db.database import get_session
+            async for session in get_session():
+                documents = await get_all_documents(session)
+                document_list = []
 
-        try:
-            loaded_data = self.embedding_service.load_embedding()
-            for doc in loaded_data:
-                documents.append(doc)
-            return documents
-        except Exception as e:
-            logger.error(f"Failed to list documents: {e}")
+                for doc in documents:
+
+                    single_document = {
+                        "id": doc.id,
+                        "metadata": {
+                            "filename": doc.filename,
+                            "created_at": doc.created_at
+                        },
+                        "content": []
+                    }
+                    
+                    for page in doc.pages:
+                        
+                        page_content = {
+                            "page_number": page.page_number,
+                            "text": page.text,
+                            "chunks": [],
+                            "embedding": []
+                        }
+                        
+                        for embedding in page.embeddings:
+                            page_content["chunks"].append(embedding.chunk_text)
+                            page_content["embedding"].append(embedding.embedding)
+
+                        single_document["content"].append(page_content)
+                                        
+                    document_list.append(single_document)
+                return document_list
+        else:
+            documents = []
+
+            try:
+                loaded_data = self.embedding_service.load_embedding()
+                for doc in loaded_data:
+                    documents.append(doc)
+                return documents
+            except Exception as e:
+                logger.error(f"Failed to list documents: {e}")
     
     async def query_documents(self, query: str, top_k: int = 5, document_ids: list[str] = []):
         """Query documents in the RAG system."""

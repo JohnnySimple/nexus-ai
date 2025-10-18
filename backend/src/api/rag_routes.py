@@ -84,19 +84,35 @@ async def list_documents(limit: int = 50, offset: int = 0):
     try:
         documents = await rag_service.list_documents(limit=limit, offset=offset)
 
-        return [
-            DocumentResponse(
-                id=doc["id"],
-                filename=doc["metadata"].get("filename", "Unknown"),
-                content=[{"page_number": page["page_number"],
-                          "content": ''.join(page['text'])[:200] + "..." if len(''.join(page['text'])) > 200 else ''.join(page['text']),
-                          "chunks": documents[doc_index]["chunks"][page_index]}
-                          for page_index, page in enumerate(doc["content"])],
-                metadata=doc["metadata"],
-                created_at=doc["metadata"].get("created_at", "Unknown")
-            )
-            for doc_index, doc in enumerate(documents)
-        ]
+        if settings.USE_DB:
+            return [
+                DocumentResponse(
+                    id=doc["id"],
+                    filename=doc["metadata"]["filename"],
+                    content=[{"page_number": single_page["page_number"],
+                            "content": ''.join(single_page['text'])[:200] + "..." if len(''.join(single_page['text'])) > 200 else ''.join(single_page['text']),
+                            "chunks": single_page["chunks"]
+                            }
+                            for single_page_index, single_page in enumerate(doc["content"])],
+                    metadata=doc["metadata"],
+                    created_at=doc["metadata"]["created_at"]
+                )
+                for doc_index, doc in enumerate(documents)
+            ]
+        else:
+            return [
+                DocumentResponse(
+                    id=doc["id"],
+                    filename=doc["metadata"].get("filename", "Unknown"),
+                    content=[{"page_number": page["page_number"],
+                            "content": ''.join(page['text'])[:200] + "..." if len(''.join(page['text'])) > 200 else ''.join(page['text']),
+                            "chunks": documents[doc_index]["chunks"][page_index]}
+                            for page_index, page in enumerate(doc["content"])],
+                    metadata=doc["metadata"],
+                    created_at=doc["metadata"].get("created_at", "Unknown")
+                )
+                for doc_index, doc in enumerate(documents)
+            ]
 
     except Exception as e:
         logger.error(f"Failed to list documents: {e}")

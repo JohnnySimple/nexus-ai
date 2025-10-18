@@ -125,7 +125,7 @@ class Embeddings:
         """
         try:
             documents = self.load_pkl_files()
-            return documents            
+            return documents
             # with open(self.storage_path, 'rb') as f:
             #     loaded_embedding = pickle.load(f)
 

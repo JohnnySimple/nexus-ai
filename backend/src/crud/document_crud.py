@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
+from sqlalchemy.orm import selectinload
 from src.db.models import Document, Page, ChunkEmbedding
 
 from typing import List
@@ -40,3 +41,17 @@ async def create_document_with_pages_and_embeddings(session: AsyncSession, docum
     await session.refresh(document)
 
     return document
+
+async def get_document_by_id(session: AsyncSession, document_id: str) -> Document | None:
+    """Retrieve a document by its ID"""
+    result = await session.execute(select(Document).where(Document.id == document_id))
+    document = result.scalar_one_or_none()
+    return document
+
+async def get_all_documents(session: AsyncSession) -> List[Document]:
+    """Retrieve all documents from the database"""
+    result = await session.execute(select(Document).options(
+        selectinload(Document.pages).selectinload(Page.embeddings)
+    ))
+    documents = result.scalars().all()
+    return documents

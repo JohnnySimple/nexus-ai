@@ -12,6 +12,8 @@ from src.services.rag_service import RagService
 from src.config import settings
 import src.helper_functions as helper_functions
 
+import time
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
@@ -134,6 +136,7 @@ async def delete_document(document_id: str):
 @router.post("/query", response_model=DocumentQueryResponse)
 async def query_documents(request: DocumentQueryRequest):
     """Query documents in the RAG system."""
+    start_time = time.time()
     results = await rag_service.query_documents(
         query=request.query,
         top_k=request.top_k,
@@ -145,7 +148,7 @@ async def query_documents(request: DocumentQueryRequest):
     all_relevant_chunks = []
     for res in results:
         all_relevant_chunks.extend(res["relevant_chunks"])
-    all_relevant_chunks = sorted(all_relevant_chunks, key=lambda x: x[1], reverse=True)[:request.top_k]
+    all_relevant_chunks = sorted(all_relevant_chunks, key=lambda x: x[0][1], reverse=True)[:request.top_k]
 
     # get top k chunks
     top_chunks = all_relevant_chunks[:request.top_k]
@@ -176,13 +179,18 @@ async def query_documents(request: DocumentQueryRequest):
             }
         )
 
+        end_time = time.time()
+        time_taken = end_time - start_time
+        formatted_time = f"{time_taken:.2f} seconds"
+
         return {
             "query": request.query,
             "results": results,
             # "results_content": results_content,
             "context": context,
             "final_prompt": prompt,
-            "llm_response": llm_response.get("response", "")
+            "llm_response": llm_response.get("response", ""),
+            "time": formatted_time
         }
 
     return {

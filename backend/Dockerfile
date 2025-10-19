@@ -1,5 +1,7 @@
 # Base image
 FROM python:3.11-slim AS builder
+# FROM nvidia/cuda:12.4.1-cudnn9-devel-ubuntu22.04 AS builder
+
 
 WORKDIR /app
 
@@ -35,6 +37,7 @@ COPY . .
 
 # Runtime image
 FROM python:3.11-slim AS runtime
+# FROM nvidia/cuda:12.4.1-cudnn9-runtime-ubuntu22.04 AS runtime
 
 WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \

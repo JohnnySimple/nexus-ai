@@ -29,7 +29,7 @@ class Config(CustomBaseSettings):
     CROSS_ENCODER_MODEL: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
     RERANK_TOP_K: bool = True
 
-    OLLAMA_API_URL: str = "http://localhost:11434"
+    OLLAMA_API_URL: str = os.getenv("LLM_URL")
     OLLAMA_MODEL_MISTRAL: str = "mistral"
 
     CORS_ORIGINS: list[str] = ["*"]

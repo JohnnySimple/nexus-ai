@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 class Embeddings:
 
     def __init__(self):
-        self.model = SentenceTransformer(settings.SENTENCE_TRANSFORMER_MODEL)
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        self.model = SentenceTransformer(settings.SENTENCE_TRANSFORMER_MODEL, self.device)
         self.storage_path = settings.EMBEDDING_STORAGE_PATH
 
     def get_file_path(self, file_name: str, document_id: str) -> str:

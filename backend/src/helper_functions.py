@@ -2,6 +2,9 @@
 
 import pymupdf
 from spacy.lang.en import English
+from sentence_transformers import SentenceTransformer, util
+
+from src.config import settings
 
 def get_file_type(file_name: str) -> str:
     """Get file type based on extension"""
@@ -87,7 +90,7 @@ def open_and_read_pdf(file_path: str) -> str:
     # return self.add_sentence_chunks_to_pages(pages_and_text, chunk_size=10)
     return pages_and_text
 
-def create_content_page_chunks(pages_and_text: list[dict]) -> list[dict]:
+def create_content_page_chunks(pages_and_text: list[dict], max_chunk_size: int = 800, min_sentence_length: int = 20) -> list[dict]:
     """
     Splits the text of each page into sentences and adds them to the page dictionary.
 
@@ -100,11 +103,90 @@ def create_content_page_chunks(pages_and_text: list[dict]) -> list[dict]:
     nlp.add_pipe("sentencizer")
 
     for item in pages_and_text:
-        item["sentences"] = list(nlp(item["text"]).sents)
-        item["sentences"] = [str(sentence) for sentence in item["sentences"]]
-        item["page_sentence_count_spacy"] = len(item["sentences"])
+        # item["sentences"] = list(nlp(item["text"]).sents)
+        # item["sentences"] = [str(sentence) for sentence in item["sentences"]]
+        # item["page_sentence_count_spacy"] = len(item["sentences"])
+
+        doc = nlp(item["text"])
+        sentences = [str(sent).strip() for sent in doc.sents if sent.text.strip()]
+
+        chunks = []
+        current_chunk = ""
+
+        for sentence in sentences:
+            # skip overly short or meaningless fragments
+            if len(sentence) < min_sentence_length and not sentence.endswith(('.', '!', '?')):
+                continue
+
+            # if adding this sentence keeps chunk size reasonable, merge it
+            if len(current_chunk) + len(sentence) <= max_chunk_size:
+                current_chunk += " " + sentence
+            else:
+                # finalize current chunk
+                chunks.append(current_chunk.strip())
+                current_chunk = sentence
+        
+        if current_chunk:
+            chunks.append(current_chunk.strip())
+        
+        item["chunks"] = chunks
+        item["page_chunk_count"] = len(chunks)
     
     return pages_and_text
+
+def create_semantic_chunks(pages_and_text: list[dict],
+                           model_name: str = settings.SENTENCE_TRANSFORMER_MODEL,
+                           max_chunk_size: int = 800,
+                           similarity_threshold: float = 0.6,
+                           min_sentence_length: int = 20) -> list[dict]:
+    """
+    Create semantically coherent chunks per page using sentence embeddings.
+    """
+
+    nlp = English()
+    nlp.add_pipe("sentencizer")
+
+    model = SentenceTransformer(model_name)
+
+    for item in pages_and_text:
+        # sentence tokenize
+        doc = nlp(item["text"])
+        sentences = [str(sent).strip() for sent in doc.sents if sent.text.strip()]
+        sentences = [s for s in sentences if len(s) > min_sentence_length]
+
+        if not sentences:
+            item["chunks"] = []
+            item["page_chunk_count"] = 0
+            continue
+
+        # compute embeddings
+        embeddings = model.encode(sentences, convert_to_tensor=True, show_progress_bar=False)
+
+        chunks = []
+        current_chunk = sentences[0]
+        current_chunk_length = len(current_chunk)
+
+        for i in range(1, len(sentences)):
+            similarity = util.cos_sim(embeddings[i-1], embeddings[i]).item()
+
+            # merge if semantically similar and within chunk size
+            if similarity >= similarity_threshold and (current_chunk_length + len(sentences[i])) <= max_chunk_size:
+                current_chunk += " " + sentences[i]
+                current_chunk_length += len(sentences[i])
+            else:
+                # commit current chunk
+                chunks.append(current_chunk.strip())
+                current_chunk = sentences[i]
+                current_chunk_length = len(sentences[i])
+        
+        # add the final chunk
+        if current_chunk.strip():
+            chunks.append(current_chunk.strip())
+        
+        item["chunks"] = chunks
+        item["page_chunk_count"] = len(chunks)
+
+        return pages_and_text
 
 def add_sentence_chunks_to_pages(pages_and_text: list[dict], chunk_size: int=10) -> list[dict]:
         """

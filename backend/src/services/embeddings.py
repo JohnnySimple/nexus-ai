@@ -34,23 +34,37 @@ class Embeddings:
     
 
     def create_embedding(self, text: str) -> dict:
+    # def create_embedding(self, document: list) -> dict:
         """Create embedding for the given splitted text"""
         try:
             embeddings = []
             chunks = []
 
+            # data = helper_functions.create_content_page_chunks(text)
+
+            # for page in data:
+            #     page_embeddings = self.model.encode(page["sentences"])
+            #     embeddings.append(page_embeddings)
+            #     chunks.append(page["sentences"])
+
+            # data = helper_functions.create_semantic_chunks(text)
             data = helper_functions.create_content_page_chunks(text)
 
-            # for page in text:
-            #     splitted_text = self._split_text(page["text"])
-            #     page_embeddings = self.model.encode(splitted_text)
-            #     embeddings.append(page_embeddings)
-            #     chunks.append(splitted_text)
-
             for page in data:
-                page_embeddings = self.model.encode(page["sentences"])
+                if not page.get("chunks"):
+                    continue
+
+                page_embeddings = self.model.encode(page["chunks"], convert_to_tensor=False)
                 embeddings.append(page_embeddings)
-                chunks.append(page["sentences"])
+                chunks.append(page["chunks"])
+
+            # for page in document["content"]:
+            #     page_chunks = helper_functions.create_semantic_chunks([page])
+            #     print(f"page_chunks: {page_chunks}")
+            #     page_embeddings = self.model.encode([page_chunks["text"] for chunk in page_chunks])
+            #     page["chunks"] = page_chunks
+            #     chunks.append(page_chunks)
+            #     embeddings.append(page_embeddings)
 
             return {
                 "chunks": chunks,
@@ -66,6 +80,7 @@ class Embeddings:
         """
         try:
             embedding = self.create_embedding(document["content"])
+            # embedding = self.create_embedding(document)
             document["embedding"] = embedding["embeddings"]
             document["chunks"] = embedding["chunks"]
 

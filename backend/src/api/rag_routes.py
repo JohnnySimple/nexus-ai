@@ -60,14 +60,16 @@ async def get_document(document_id: str):
     """Get a specific document by its ID."""
     try:
         documents = await rag_service.list_documents()
-        for doc in documents:
+        for doc_index, doc in enumerate(documents):
             if doc["id"] == document_id:
                 return DocumentResponse(
                     id=doc["id"],
                     filename=doc["metadata"].get("filename", "Unknown"),
                     content=[{"page_number": page["page_number"],
                               "content": ''.join(page['text'])[:200] + "..." if len(''.join(page['text'])) > 200 else ''.join(page['text']),
-                              "chunks": doc["chunks"][page_index]}
+                              "chunks": doc["chunks"][page_index]
+                                # "chunks": documents[doc_index]["chunks"]
+                              }
                               for page_index, page in enumerate(doc["content"])],
                     metadata=doc["metadata"],
                     created_at=doc["metadata"].get("created_at", "Unknown"),
@@ -108,7 +110,9 @@ async def list_documents(limit: int = 50, offset: int = 0):
                     filename=doc["metadata"].get("filename", "Unknown"),
                     content=[{"page_number": page["page_number"],
                             "content": ''.join(page['text'])[:200] + "..." if len(''.join(page['text'])) > 200 else ''.join(page['text']),
-                            "chunks": documents[doc_index]["chunks"][page_index]}
+                            "chunks": documents[doc_index]["chunks"][page_index]
+                            # "chunks": documents[doc_index]["chunks"]
+                            }
                             for page_index, page in enumerate(doc["content"])],
                     metadata=doc["metadata"],
                     created_at=doc["metadata"].get("created_at", "Unknown")

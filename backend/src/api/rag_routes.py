@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Query, HTTPException
 from starlette.responses import StreamingResponse
 
 from typing import List, Optional, Dict, Any
@@ -138,8 +138,21 @@ async def delete_document(document_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
 
-@router.post("/query", response_model=DocumentQueryResponse)
-async def query_documents(request: DocumentQueryRequest):
+@router.get("/query", response_model=DocumentQueryResponse)
+async def query_documents(
+    query: str = Query(...),
+    top_k: int = Query(5),
+    document_ids: List[str] = Query([]),
+    with_llm_response: bool = Query(False),
+    stream: bool = Query(False)
+):
+    request = DocumentQueryRequest(
+        query=query,
+        top_k=top_k,
+        document_ids=document_ids,
+        with_llm_response=with_llm_response,
+        stream=stream
+    )
     """Query documents in the RAG system."""
     if request.stream:
         from src.api.rag_stream import query_docs
@@ -150,19 +163,6 @@ async def query_documents(request: DocumentQueryRequest):
         top_k=request.top_k,
         document_ids=request.document_ids
     )
-
-    # # sort all the relevant chunks by score and return top_k
-    # # all_relevant_chunks = [(chunk_text, score, doc_id, page_num), ...]
-
-    # all_relevant_chunks = []
-    # for res in results:
-    #     all_relevant_chunks.extend(res["relevant_chunks"])
-    # all_relevant_chunks = sorted(all_relevant_chunks, key=lambda x: x[1], reverse=True)[:request.top_k]
-
-    # # get top k chunks
-    # top_chunks = all_relevant_chunks[:request.top_k]
-
-    # context = "\n".join(f"- {chunk[0]}" for res in top_chunks for chunk in res)
 
     context = rag_helpers.build_context(results, request)
     output = await rag_helpers.get_query_output(request, context, results)

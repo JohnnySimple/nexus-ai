@@ -5,7 +5,7 @@ from src.config import settings
 import src.helper_functions as helper_functions
 from src.schemas.chat_schema import ChatRequest
 import src.services.rag_helpers as rag_helpers
-
+import asyncio
 
 rag_service = RagService()
 
@@ -13,6 +13,7 @@ async def query_docs(request: DocumentQueryRequest):
     """Query documents in the RAG system."""
 
     yield("data: Querying relevant documents...\n\n")
+    await asyncio.sleep(0)
     results = await rag_service.query_documents(
         query=request.query,
         top_k=request.top_k,
@@ -21,6 +22,7 @@ async def query_docs(request: DocumentQueryRequest):
 
     yield("data: Retrieving relevant documents.\n\n")
     context = rag_helpers.build_context(results, request)
+    await asyncio.sleep(0)
 
     yield("data: Augmenting and generating LLM response...\n\n")
     output = await rag_helpers.get_query_output(request, context, results)

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test</title>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script>
+
+        const params = new URLSearchParams({
+        query: "what was said under evidence and support?",
+        top_k: 5,
+        with_llm_response: true,
+        stream: true,
+        // document_ids: "4ca065bb-740b-40fa-8467-642ab7a33d76"
+        });
+
+        ["4ca065bb-740b-40fa-8467-642ab7a33d76", "string2"].forEach(id => {
+        params.append("document_ids", id);
+        });
+
+        const eventSource = new EventSource(`http://localhost:8000/rag/query?${params.toString()}`);
+
+        eventSource.onmessage = (event) => {
+        console.log("New message:", event.data);
+        const element = document.getElementById("root");
+        element.innerHTML += `<p>${event.data}</p>`;
+        };
+
+        eventSource.onerror = (err) => {
+        console.error("EventSource failed:", err);
+        eventSource.close();
+        };
+        
+    </script>
+</body>
+</html>

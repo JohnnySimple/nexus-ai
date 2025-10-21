@@ -1,5 +1,6 @@
 
 from fastapi import APIRouter, HTTPException
+from starlette.responses import StreamingResponse
 
 from typing import List, Optional, Dict, Any
 import logging
@@ -11,6 +12,7 @@ from src.schemas.chat_schema import ChatRequest
 from src.services.rag_service import RagService
 from src.config import settings
 import src.helper_functions as helper_functions
+import src.services.rag_helpers as rag_helpers
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -135,63 +137,72 @@ async def delete_document(document_id: str):
         logger.error(f"Failed to delete document: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
+
 @router.post("/query", response_model=DocumentQueryResponse)
 async def query_documents(request: DocumentQueryRequest):
     """Query documents in the RAG system."""
+    if request.stream:
+        from src.api.rag_stream import query_docs
+        return StreamingResponse(query_docs(request), media_type="text/event-stream")
+    
     results = await rag_service.query_documents(
         query=request.query,
         top_k=request.top_k,
         document_ids=request.document_ids
     )
 
-    # sort all the relevant chunks by score and return top_k
-    # all_relevant_chunks = [(chunk_text, score, doc_id, page_num), ...]
-    all_relevant_chunks = []
-    for res in results:
-        all_relevant_chunks.extend(res["relevant_chunks"])
-    all_relevant_chunks = sorted(all_relevant_chunks, key=lambda x: x[1], reverse=True)[:request.top_k]
+    # # sort all the relevant chunks by score and return top_k
+    # # all_relevant_chunks = [(chunk_text, score, doc_id, page_num), ...]
 
-    # get top k chunks
-    top_chunks = all_relevant_chunks[:request.top_k]
+    # all_relevant_chunks = []
+    # for res in results:
+    #     all_relevant_chunks.extend(res["relevant_chunks"])
+    # all_relevant_chunks = sorted(all_relevant_chunks, key=lambda x: x[1], reverse=True)[:request.top_k]
 
-    # flatten top_chunks
-    # t_chunks = [chunk for sub in top_chunks for chunk in sub]
+    # # get top k chunks
+    # top_chunks = all_relevant_chunks[:request.top_k]
 
+    # context = "\n".join(f"- {chunk[0]}" for res in top_chunks for chunk in res)
 
-    # results_content = "\n".join(f"- {chunk[0]}" for res in results for chunk in res["relevant_chunks"])
-    context = "\n".join(f"- {chunk[0]}" for res in top_chunks for chunk in res)
+    context = rag_helpers.build_context(results, request)
+    output = await rag_helpers.get_query_output(request, context, results)
+    return output
 
-    if request.with_llm_response:
-        prompt_template = helper_functions.get_rag_prompt_template()
-        prompt = prompt_template.format(question=request.query, context=context)
+    # if request.with_llm_response:
+    #     try:
+    #         prompt_template = helper_functions.get_rag_prompt_template()
+    #         prompt = prompt_template.format(question=request.query, context=context)
 
-        from src.services.ollama_client_service import OllamaClient
-        ollama_client = OllamaClient()
+    #         from src.services.ollama_client_service import OllamaClient
+    #         ollama_client = OllamaClient()
 
-        chat_request = ChatRequest(
-            model=settings.OLLAMA_MODEL_MISTRAL,
-            messages=[{"role": "user", "content": prompt}]
-        )
+    #         chat_request = ChatRequest(
+    #             model=settings.OLLAMA_MODEL_MISTRAL,
+    #             messages=[{"role": "user", "content": prompt}]
+    #         )
 
-        llm_response = await ollama_client.generate(
-            {
-                "model": chat_request.model,
-                "prompt": prompt
-            }
-        )
+    #         llm_response = await ollama_client.generate(
+    #             {
+    #                 "model": chat_request.model,
+    #                 "prompt": prompt
+    #             }
+    #         )
 
-        return {
-            "query": request.query,
-            "results": results,
-            # "results_content": results_content,
-            "context": context,
-            "final_prompt": prompt,
-            "llm_response": llm_response.get("response", "")
-        }
-
-    return {
-        "query": request.query,
-        "results": results,
-        # "results_content": results_content,
-        "context": context,
-    }
+    #         return {
+    #             "query": request.query,
+    #             "results": results,
+    #             # "results_content": results_content,
+    #             "context": context,
+    #             "final_prompt": prompt,
+    #             "llm_response": llm_response.get("response", "")
+    #         }
+    #     except Exception as e:
+    #         logger.error(f"LLM response generation failed: {e}")
+    #         raise HTTPException(status_code=500, detail=f"LLM response generation failed: {str(e)}")
+    # else:
+    #     return {
+    #         "query": request.query,
+    #         "results": results,
+    #         # "results_content": results_content,
+    #         "context": context,
+    #     }

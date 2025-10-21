@@ -28,6 +28,7 @@ class DocumentResponse(BaseModel):
 class DocumentQueryRequest(BaseModel):
     query: str = Field(..., description="Query text")
     with_llm_response: bool = Field(default=False, description="Whether to include LLM response")
+    stream: bool = Field(default=False, description="Whether to stream the response")
     top_k: int = Field(default=5, description="Number of results to return")
     filter_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Metadata filters")
     document_ids: List[str]

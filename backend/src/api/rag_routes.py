@@ -69,8 +69,9 @@ async def get_document(document_id: str):
                     filename=doc["metadata"].get("filename", "Unknown"),
                     content=[{"page_number": page["page_number"],
                               "content": ''.join(page['text'])[:200] + "..." if len(''.join(page['text'])) > 200 else ''.join(page['text']),
-                              "chunks": doc["chunks"][page_index]
+                            #   "chunks": doc["chunks"][page_index]
                                 # "chunks": documents[doc_index]["chunks"]
+                                "chunks": page["chunks"]
                               }
                               for page_index, page in enumerate(doc["content"])],
                     metadata=doc["metadata"],

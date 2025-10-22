@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 class Embeddings:
 
     def __init__(self):
-        self.model = SentenceTransformer(settings.SENTENCE_TRANSFORMER_MODEL)
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+        self.model = SentenceTransformer(settings.SENTENCE_TRANSFORMER_MODEL, self.device)
         self.storage_path = settings.EMBEDDING_STORAGE_PATH
 
     def get_file_path(self, file_name: str, document_id: str) -> str:
@@ -202,6 +204,42 @@ class Embeddings:
                     in zip(top_similarities_answers, top_values)]
         return results
 
+    def search_with_documents(self, query: str, documents: list, top_k: int = 5) -> list[dict]:
+        """Search for similar chunks in all specified documents"""
+        potential_answers = []
+
+        if settings.RERANK_TOP_K:
+            top_k = top_k * 2
+
+        for doc in documents:
+
+            print(f"keys: {list(doc.keys())}")
+            print(f"doc: {doc['content'][0]['embedding']}")
+
+            similar_chunks = []
+            
+            # for page_index, page_embedding in enumerate(doc["embedding"]):
+            for page in doc["content"]:
+                similarity = self.get_top_similarities_from_page(query, page["embedding"], page["chunks"], top_k,
+                                                                    document_id=doc["id"], page_number=page["page_number"])
+                
+                if settings.RERANK_TOP_K:
+                    similarity = self.rerank(query, similarity, top_k/2)
+
+                similar_chunks.append(similarity)
+            
+            potential_answers.append({
+                "document": {
+                    "id": doc["id"],
+                    "filename": doc["metadata"]["filename"],
+                    "metadata": doc["metadata"]
+                },
+                "relevant_chunks": similar_chunks
+            })
+
+        return potential_answers
+        
+    
     def search(self, query: str, top_k: int = 5, document_ids: list[str] = []) -> list[dict]:
         """Search for similar chunks in all specified documents"""
         loaded_embeddings = self.load_embedding()

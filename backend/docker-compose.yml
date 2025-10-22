@@ -1,0 +1,26 @@
+services:
+  backend:
+    container_name: nexus-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED="1"
+    networks:
+      - nexus-network
+    # ensure Linux host can connect to host services
+    # extra-hosts:
+    #   - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    command: >
+      python -m uvicorn src.main:app
+      --host 0.0.0.0
+      --reload
+    volumes:
+      - .:/app
+
+networks:
+  nexus-network:
+    driver: bridge

@@ -8,18 +8,21 @@ import logging
 logger = logging.getLogger(__name__)
 
 def build_context(results, request) -> str:
-    """Build context from query results."""
-    # sort all the relevant chunks by score and return top_k
-    # all_relevant_chunks = [(chunk_text, score, doc_id, page_num), ...]
-    all_relevant_chunks = []
+    """Build context from query results"""
+    all_chunks = []
     for res in results:
-        all_relevant_chunks.extend(res["relevant_chunks"])
-    all_relevant_chunks = sorted(all_relevant_chunks, key=lambda x: x[1], reverse=True)[:request.top_k]
+        doc_name = res["document"]["filename"]
+        for group in res["relevant_chunks"]:
+            for text, score, doc_id, page, reranked_value in group:
+                all_chunks.append((text, score, doc_name, page))
+    
+    top_chunks = sorted(all_chunks, key=lambda x: x[1], reverse=True)[:request.top_k]
 
-    # get top k chunks
-    top_chunks = all_relevant_chunks[:request.top_k]
+    context = "\n".join(
+        f"- (score={score:.4f}, doc={doc_name.split('/')[-1]}, page={page}) {text}"
+        for text, score, doc_name, page in top_chunks
+    )
 
-    context = "\n".join(f"- {chunk[0]}" for res in top_chunks for chunk in res)
     return context
 
 
@@ -48,7 +51,6 @@ async def get_query_output(request, context, results) -> dict:
             return {
                 "query": request.query,
                 "results": results,
-                # "results_content": results_content,
                 "context": context,
                 "final_prompt": prompt,
                 "llm_response": llm_response.get("response", "")
@@ -60,6 +62,38 @@ async def get_query_output(request, context, results) -> dict:
         return {
             "query": request.query,
             "results": results,
-            # "results_content": results_content,
             "context": context,
         }
+    
+async def get_full_document(document) -> dict:
+    """
+    Construct and return full document
+    """
+    try:
+        doc = {
+            "id": document.id,
+            "metadata": {
+                "filename": document.filename,
+                "created_at": document.created_at
+            },
+            "content": []
+        }
+        
+        for page in document.pages:
+            
+            page_content = {
+                "page_number": page.page_number,
+                "text": page.text,
+                "chunks": [],
+                "embedding": []
+            }
+            
+            for embedding in page.embeddings:
+                page_content["chunks"].append(embedding.chunk_text)
+                page_content["embedding"].append(embedding.embedding)
+
+            doc["content"].append(page_content)
+        return doc
+    except Exception as e:
+        logger.error(f"Error occurred getting full document: {e}")
+        return {}

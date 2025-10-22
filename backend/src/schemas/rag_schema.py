@@ -43,6 +43,7 @@ class DocumentQueryResponse(BaseModel):
     context: str
     final_prompt: Optional[str] = None
     llm_response: Optional[str] = None
+    time: Optional[float | str] = None
 
 class ErrorResponse(BaseModel):
     message: str

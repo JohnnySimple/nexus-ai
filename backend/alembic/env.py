@@ -12,7 +12,7 @@ import os
 load_dotenv()
 
 DATABASE_URL = (
-    f"postgresql://{os.getenv('DB_USER')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
+    f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
 )
 
 # this is the Alembic Config object, which provides

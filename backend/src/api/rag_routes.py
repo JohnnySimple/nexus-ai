@@ -61,26 +61,43 @@ async def ingest_document(request: DocumentIngestRequest):
 async def get_document(document_id: str):
     """Get a specific document by its ID."""
     try:
-        documents = await rag_service.list_documents()
-        for doc_index, doc in enumerate(documents):
-            if doc["id"] == document_id:
-                return DocumentResponse(
-                    id=doc["id"],
-                    filename=doc["metadata"].get("filename", "Unknown"),
+        # documents = await rag_service.list_documents()
+        # for doc_index, doc in enumerate(documents):
+        #     if doc["id"] == document_id:
+        #         return DocumentResponse(
+        #             id=doc["id"],
+        #             filename=doc["metadata"].get("filename", "Unknown"),
+        #             content=[{"page_number": page["page_number"],
+        #                       "content": ''.join(page['text'])[:200] + "..." if len(''.join(page['text'])) > 200 else ''.join(page['text']),
+        #                     #   "chunks": doc["chunks"][page_index]
+        #                         # "chunks": documents[doc_index]["chunks"]
+        #                         "chunks": page["chunks"]
+        #                       }
+        #                       for page_index, page in enumerate(doc["content"])],
+        #             metadata=doc["metadata"],
+        #             created_at=doc["metadata"].get("created_at", "Unknown"),
+        #             # embeddings=[{"page_number": index,
+        #             #              "embeddings": item.tolist()}
+        #             #             for index, item in enumerate(doc["embedding"])]
+        #         )
+        # raise HTTPException(status_code=404, detail="Document not found")
+        document = await rag_service.get_document(document_id)
+        return DocumentResponse(
+            id=document["id"],
+            filename=document["metadata"].get("filename", "Unknown"),
                     content=[{"page_number": page["page_number"],
                               "content": ''.join(page['text'])[:200] + "..." if len(''.join(page['text'])) > 200 else ''.join(page['text']),
                             #   "chunks": doc["chunks"][page_index]
                                 # "chunks": documents[doc_index]["chunks"]
                                 "chunks": page["chunks"]
                               }
-                              for page_index, page in enumerate(doc["content"])],
-                    metadata=doc["metadata"],
-                    created_at=doc["metadata"].get("created_at", "Unknown"),
+                              for page_index, page in enumerate(document["content"])],
+                    metadata=document["metadata"],
+                    created_at=document["metadata"].get("created_at", "Unknown"),
                     # embeddings=[{"page_number": index,
                     #              "embeddings": item.tolist()}
                     #             for index, item in enumerate(doc["embedding"])]
-                )
-        raise HTTPException(status_code=404, detail="Document not found")
+        )
     except Exception as e:
         logger.error(f"Failed to get document: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get document: {str(e)}")
@@ -91,37 +108,37 @@ async def list_documents(limit: int = 50, offset: int = 0):
     try:
         documents = await rag_service.list_documents(limit=limit, offset=offset)
 
-        if settings.USE_DB:
-            return [
-                DocumentResponse(
-                    id=doc["id"],
-                    filename=doc["metadata"]["filename"],
-                    content=[{"page_number": single_page["page_number"],
-                            "content": ''.join(single_page['text'])[:200] + "..." if len(''.join(single_page['text'])) > 200 else ''.join(single_page['text']),
-                            "chunks": single_page["chunks"]
-                            }
-                            for single_page_index, single_page in enumerate(doc["content"])],
-                    metadata=doc["metadata"],
-                    created_at=doc["metadata"]["created_at"]
-                )
-                for doc_index, doc in enumerate(documents)
-            ]
-        else:
-            return [
-                DocumentResponse(
-                    id=doc["id"],
-                    filename=doc["metadata"].get("filename", "Unknown"),
-                    content=[{"page_number": page["page_number"],
-                            "content": ''.join(page['text'])[:200] + "..." if len(''.join(page['text'])) > 200 else ''.join(page['text']),
-                            "chunks": documents[doc_index]["chunks"][page_index]
-                            # "chunks": documents[doc_index]["chunks"]
-                            }
-                            for page_index, page in enumerate(doc["content"])],
-                    metadata=doc["metadata"],
-                    created_at=doc["metadata"].get("created_at", "Unknown")
-                )
-                for doc_index, doc in enumerate(documents)
-            ]
+        # if settings.USE_DB:
+        return [
+            DocumentResponse(
+                id=doc["id"],
+                filename=doc["metadata"]["filename"],
+                content=[{"page_number": single_page["page_number"],
+                        "content": ''.join(single_page['text'])[:200] + "..." if len(''.join(single_page['text'])) > 200 else ''.join(single_page['text']),
+                        "chunks": single_page["chunks"]
+                        }
+                        for single_page_index, single_page in enumerate(doc["content"])],
+                metadata=doc["metadata"],
+                created_at=doc["metadata"]["created_at"]
+            )
+            for doc_index, doc in enumerate(documents)
+        ]
+        # else:
+        #     return [
+        #         DocumentResponse(
+        #             id=doc["id"],
+        #             filename=doc["metadata"].get("filename", "Unknown"),
+        #             content=[{"page_number": page["page_number"],
+        #                     "content": ''.join(page['text'])[:200] + "..." if len(''.join(page['text'])) > 200 else ''.join(page['text']),
+        #                     "chunks": documents[doc_index]["chunks"][page_index]
+        #                     # "chunks": documents[doc_index]["chunks"]
+        #                     }
+        #                     for page_index, page in enumerate(doc["content"])],
+        #             metadata=doc["metadata"],
+        #             created_at=doc["metadata"].get("created_at", "Unknown")
+        #         )
+        #         for doc_index, doc in enumerate(documents)
+        #     ]
 
     except Exception as e:
         logger.error(f"Failed to list documents: {e}")

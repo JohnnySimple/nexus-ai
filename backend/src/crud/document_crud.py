@@ -44,9 +44,19 @@ async def create_document_with_pages_and_embeddings(session: AsyncSession, docum
 
 async def get_document_by_id(session: AsyncSession, document_id: str) -> Document | None:
     """Retrieve a document by its ID"""
-    result = await session.execute(select(Document).where(Document.id == document_id))
+    result = await session.execute(select(Document).where(Document.id == document_id).options(
+        selectinload(Document.pages).selectinload(Page.embeddings)
+    ))
     document = result.scalar_one_or_none()
     return document
+
+async def get_documents_by_ids(session: AsyncSession, document_ids: List[str]) -> List[Document]:
+    """Retrieve documents by ids"""
+    result = await session.execute(select(Document).where(Document.id.in_(document_ids)).options(
+        selectinload(Document.pages).selectinload(Page.embeddings)
+    ))
+    documents = result.scalars().all()
+    return documents
 
 async def get_all_documents(session: AsyncSession) -> List[Document]:
     """Retrieve all documents from the database"""

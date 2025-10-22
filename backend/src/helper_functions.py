@@ -3,6 +3,7 @@
 import pymupdf
 from spacy.lang.en import English
 from sentence_transformers import SentenceTransformer, util
+import tiktoken
 
 from src.config import settings
 
@@ -88,6 +89,48 @@ def open_and_read_pdf(file_path: str) -> str:
     # pages_and_text = self.add_sentences_to_pages(pages_and_text)
 
     # return self.add_sentence_chunks_to_pages(pages_and_text, chunk_size=10)
+    return pages_and_text
+
+def create_content_page_chunks_reload(pages_and_text: list[dict], max_tokens: int = 400, overlap_tokens: int = 50, min_sentence_length: int = 20) -> list[dict]:
+    """
+    Splits the text of each page into sentences and adds them to the page dictionary.
+
+    Args:
+        pages_and_text (list): A list of dictionaries, each representing the text from a page.
+    Returns:
+        list: The updated list of dictionaries with sentences added.
+    """
+    nlp = English()
+    nlp.add_pipe("sentencizer")
+    tokenizer = tiktoken.get_encoding("cl100k_base")
+
+    def num_tokens(text):
+        return len(tokenizer.encode(text))
+    
+    for item in pages_and_text:
+        doc = nlp(item["text"])
+        sentences = [s.text.strip() for s in doc.sents if s.text.strip()]
+        chunks, current_chunk, current_tokens = [], [], 0
+
+        for sent in sentences:
+            tokens = num_tokens(sent)
+            if len(sent) < min_sentence_length and not sent.endswith(('.', '?', '!')):
+                continue
+            if current_tokens + tokens > max_tokens:
+                chunks.append(" ".join(current_chunk).strip())
+                # add overlap
+                overlap = " ".join(current_chunk[-overlap_tokens:])
+                current_chunk, current_tokens = [overlap, sent], num_tokens(overlap + sent)
+            else:
+                current_chunk.append(sent)
+                current_tokens += tokens
+        
+        if current_chunk:
+            chunks.append(" ".join(current_chunk).strip())
+        
+        item["chunks"] = chunks
+        item["page_chunk_count"] = len(chunks)
+
     return pages_and_text
 
 def create_content_page_chunks(pages_and_text: list[dict], max_chunk_size: int = 800, min_sentence_length: int = 20) -> list[dict]:

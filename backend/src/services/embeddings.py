@@ -48,7 +48,7 @@ class Embeddings:
             #     chunks.append(page["sentences"])
 
             # data = helper_functions.create_semantic_chunks(text)
-            data = helper_functions.create_content_page_chunks(text)
+            data = helper_functions.create_content_page_chunks_reload(text)
 
             for page in data:
                 if not page.get("chunks"):

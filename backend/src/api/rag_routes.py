@@ -57,7 +57,7 @@ async def ingest_document(request: DocumentIngestRequest):
         #     status=Status.FAILURE
         # )
 
-@router.get("documents/{document_id}", response_model=Optional[DocumentResponse])
+@router.get("/documents/{document_id}", response_model=Optional[DocumentResponse])
 async def get_document(document_id: str):
     """Get a specific document by its ID."""
     try:

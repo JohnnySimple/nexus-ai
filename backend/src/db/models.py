@@ -2,7 +2,28 @@ from sqlmodel import Field, SQLModel, Column, JSON, Relationship
 from typing import Optional, List
 from pgvector.sqlalchemy import Vector
 import uuid
+from datetime import datetime, timezone
 
+class User(SQLModel, table=True):
+    __tablename__ = "users"
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    email: str
+    password_hash: str
+    name: str
+    role: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    last_login: str
+
+class DocumentGroup(SQLModel, table=True):
+    __tablename__ = "document_groups"
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    name: str
+    description: str
+    color: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    documents: List["Document"] = Relationship(back_populates="document_group")
 
 class Document(SQLModel, table=True):
     __tablename__ = "documents"
@@ -15,8 +36,9 @@ class Document(SQLModel, table=True):
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     filename: str
-    created_at: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     pages: List["Page"] = Relationship(back_populates="document")
+    document_group: Optional[DocumentGroup] = Relationship(back_populates="documents")
 
 
 class Page(SQLModel, table=True):
@@ -41,3 +63,15 @@ class ChunkEmbedding(SQLModel, table=True):
     page_id: str = Field(foreign_key="pages.id")
 
     page: Optional[Page] = Relationship(back_populates="embeddings")
+
+
+class RagSettings(SQLModel, table=True):
+    __table_name__ = "rag_settings"
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    top_k: int
+    temperature: int
+    chunk_size: int
+    chunk_overlap: int
+    rerank: bool
+    document: Optional[Document] = Relationship(back_populates="rag_settings")

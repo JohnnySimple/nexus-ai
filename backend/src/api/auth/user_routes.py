@@ -1,0 +1,58 @@
+from fastapi import APIRouter, HTTPException, Depends, status
+from pydantic import ValidationError
+from passlib.context import CryptContext
+import logging
+import time
+
+from src.db.models import User
+from src.schemas.user_schema import UserRegisterRequest, UserResponse
+from src.crud.user_crud import create_user, get_user_by_email, get_user_by_id
+from src.utils.jwt import generate_jwt_token
+from src.db.database import get_session
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+@router.post("/register", response_model=UserResponse)
+async def register_user(request: UserRegisterRequest):
+    """Register a new user."""
+
+    try:
+        # check if user already exists
+        async for session in get_session():
+            existing_user = await get_user_by_email(session, request.email)
+            if existing_user:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
+        
+        # hash password
+        hashed_password = pwd_context.hash(request.password)
+        request.password = hashed_password
+
+        # create new user
+        async for session in get_session():
+            user_to_add = User(
+                email=request.email,
+                password_hash=hashed_password,
+                name=request.name,
+                role=request.role,
+                created_at=time.strftime("%Y-%m-%d %H:%M:%S")
+            )
+            user = await create_user(session, user_to_add)
+
+            # generate token
+            token = generate_jwt_token(user)
+
+            return UserResponse(
+                id=str(user.id),
+                email=user.email,
+                name=user.name,
+                token=token
+            )
+    except ValidationError as e:
+        logger.error(f"Validation error: {e}")
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error registering user: {e}")
+        return {"error": str(e)}

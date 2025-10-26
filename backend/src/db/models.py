@@ -12,8 +12,7 @@ class User(SQLModel, table=True):
     password_hash: str
     name: str
     role: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    last_login: str
+    created_at: str
 
 class DocumentGroup(SQLModel, table=True):
     __tablename__ = "document_groups"
@@ -22,7 +21,7 @@ class DocumentGroup(SQLModel, table=True):
     name: str
     description: str
     color: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: str
     documents: List["Document"] = Relationship(back_populates="document_group")
 
 class Document(SQLModel, table=True):
@@ -36,9 +35,11 @@ class Document(SQLModel, table=True):
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     filename: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: str
     pages: List["Page"] = Relationship(back_populates="document")
+    document_group_id: str = Field(foreign_key="document_groups.id")
     document_group: Optional[DocumentGroup] = Relationship(back_populates="documents")
+    rag_settings: "RagSetting" = Relationship(back_populates="document")
 
 
 class Page(SQLModel, table=True):
@@ -65,8 +66,8 @@ class ChunkEmbedding(SQLModel, table=True):
     page: Optional[Page] = Relationship(back_populates="embeddings")
 
 
-class RagSettings(SQLModel, table=True):
-    __table_name__ = "rag_settings"
+class RagSetting(SQLModel, table=True):
+    __tablename__ = "rag_settings"
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     top_k: int
@@ -74,4 +75,5 @@ class RagSettings(SQLModel, table=True):
     chunk_size: int
     chunk_overlap: int
     rerank: bool
+    document_id: str = Field(foreign_key="documents.id")
     document: Optional[Document] = Relationship(back_populates="rag_settings")

@@ -1,7 +1,7 @@
 """Main application entry point for the server."""
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, APIRouter
 from starlette.middleware.cors import CORSMiddleware
 from typing import AsyncGenerator
 import logging
@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from src.config import app_configs, settings
 
 from src.api.rag_routes import router as rag_router
+from src.api.auth.user_routes import router as auth_router
 
 load_dotenv()
 
@@ -28,6 +29,10 @@ async def lifespan(_application: FastAPI) -> AsyncGenerator[None, None]:
     
     yield
 
+api_router = APIRouter(prefix="/api")
+api_router.include_router(rag_router, prefix="/rag", tags=["RAG"])
+api_router.include_router(auth_router, prefix="/auth", tags=["Auth"])
+
 app = FastAPI(**app_configs, lifespan=lifespan)
 
 app.add_middleware(
@@ -38,8 +43,7 @@ app.add_middleware(
     allow_headers=settings.CORS_HEADERS,
 )
 
-app.include_router(rag_router, prefix="/rag", tags=["RAG"])
-
+app.include_router(api_router)
 
 @app.get("/healthcheck", tags=["Health"])
 async def healthcheck() -> dict[str, str]:

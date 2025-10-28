@@ -1,4 +1,4 @@
-import { Home, FileText, Database, Search, Settings, BarChart3, Shield } from "lucide-react";
+import { Home, FileText, Database, Search, Settings, BarChart3, Shield, LogOut } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -61,7 +61,7 @@ type User = {
 };
 
 export function AppSidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   
   const { data: currentUser } = useQuery<User>({
     queryKey: ["/api/auth/me"],
@@ -69,6 +69,12 @@ export function AppSidebar() {
 
   const isAdmin = currentUser?.role === "admin";
   const displayMenuItems = isAdmin ? [...menuItems, adminMenuItem] : menuItems;
+
+  const logout = () => {
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user");
+    setLocation("/login");
+  }
 
   return (
     <Sidebar>
@@ -102,6 +108,17 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              <SidebarMenuItem key="">
+                <SidebarMenuButton
+                  asChild
+                >
+                  <Link href="" onClick={logout}>
+                    <LogOut className="h-4 w-4" />
+                    <span>Logout</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

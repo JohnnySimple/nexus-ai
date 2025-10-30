@@ -74,7 +74,7 @@ class Embeddings:
             logger.error(f"An error occurred embedding document: {e}")
 
 
-    async def save_embedding(self, document):
+    async def save_embedding(self, document, group_id: str):
         """"
         Save embedding
         """
@@ -92,7 +92,8 @@ class Embeddings:
                     db_document = Document(
                         id=document["id"],
                         filename=document["metadata"]["filename"],
-                        created_at=document["metadata"]["created_at"]
+                        created_at=document["metadata"]["created_at"],
+                        document_group_id=group_id
                     )
 
                     pages = []

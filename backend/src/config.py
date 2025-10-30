@@ -51,6 +51,8 @@ class Config(CustomBaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    TEMP_UPLOAD_DIR: str = "data/temp_uploads"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

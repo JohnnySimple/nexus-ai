@@ -36,7 +36,7 @@ class RagService:
             return content
         
     
-    async def ingest_document(self, content: str, metadata: dict) -> str:
+    async def ingest_document(self, content: str, metadata: dict, group_id: str) -> str:
         """
         Ingest a document into the RAG system.
         """
@@ -50,7 +50,7 @@ class RagService:
                 "metadata": metadata
             }
 
-            await self.embedding_service.save_embedding(document)
+            await self.embedding_service.save_embedding(document, group_id)
 
             return document_id
         except Exception as e:

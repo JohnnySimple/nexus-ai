@@ -1,10 +1,41 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from sqlalchemy.orm import selectinload
-from src.db.models import Document, Page, ChunkEmbedding
+from src.db.models import DocumentGroup, Document, Page, ChunkEmbedding
 
 from typing import List
+import time
 
+
+async def create_document_group(session: AsyncSession, name: str, description: str, color: str) -> DocumentGroup:
+    """Create a new document group in the database"""
+
+    document_group = DocumentGroup(
+        name=name,
+        description=description,
+        color=color,
+        created_at=time.strftime("%Y-%m-%d %H:%M:%S")
+    )
+    session.add(document_group)
+    await session.commit()
+    await session.refresh(document_group)
+    return document_group
+
+async def get_document_group_by_id(session: AsyncSession, group_id: str) -> DocumentGroup | None:
+    """Retrieve a document group by its ID"""
+    result = await session.execute(select(DocumentGroup).where(DocumentGroup.id == group_id).options(
+        selectinload(DocumentGroup.documents)
+    ))
+    document_group = result.scalar_one_or_none()
+    return document_group
+
+async def get_all_document_groups(session: AsyncSession) -> List[DocumentGroup]:
+    """Retrieve all document groups from the database"""
+    result = await session.execute(select(DocumentGroup).options(
+        selectinload(DocumentGroup.documents)
+    ))
+    document_groups = result.scalars().all()
+    return document_groups
 
 async def create_document(session: AsyncSession, document: Document) -> Document:
     """Create a new document in the database"""

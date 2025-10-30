@@ -13,7 +13,7 @@ from src.db.database import get_session
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 @router.post("/register", response_model=UserResponseWithToken | ResponseError)
 async def register_user(request: UserRegisterRequest):

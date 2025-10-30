@@ -32,7 +32,7 @@ class Config(CustomBaseSettings):
     OLLAMA_API_URL: str = os.getenv("LLM_URL")
     OLLAMA_MODEL_MISTRAL: str = "mistral"
 
-    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ORIGINS: list[str] = ["http://localhost:5001", "http://127.0.0.1:5001"]
     CORS_HEADERS: list[str] = ["*"]
 
     SUPPORTED_FILE_TYPES: list[str] = ["txt", "pdf", "docx"]

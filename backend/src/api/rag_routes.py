@@ -15,6 +15,8 @@ from src.config import settings
 import src.helper_functions as helper_functions
 import src.services.rag_helpers as rag_helpers
 
+import requests
+import json
 import time
 
 logger = logging.getLogger(__name__)
@@ -227,41 +229,19 @@ async def query_documents(
     output = await rag_helpers.get_query_output(request, context, results)
     return output
 
-    # if request.with_llm_response:
-    #     try:
-    #         prompt_template = helper_functions.get_rag_prompt_template()
-    #         prompt = prompt_template.format(question=request.query, context=context)
 
-    #         from src.services.ollama_client_service import OllamaClient
-    #         ollama_client = OllamaClient()
+@router.get("/llms")
+async def list_available_llms():
+    """List all available LLMs."""
+    try:
 
-    #         chat_request = ChatRequest(
-    #             model=settings.OLLAMA_MODEL_MISTRAL,
-    #             messages=[{"role": "user", "content": prompt}]
-    #         )
+        response = requests.get(f"{settings.OLLAMA_API_URL}/api/tags")
 
-    #         llm_response = await ollama_client.generate(
-    #             {
-    #                 "model": chat_request.model,
-    #                 "prompt": prompt
-    #             }
-    #         )
+        text = response.text
 
-    #         return {
-    #             "query": request.query,
-    #             "results": results,
-    #             # "results_content": results_content,
-    #             "context": context,
-    #             "final_prompt": prompt,
-    #             "llm_response": llm_response.get("response", "")
-    #         }
-    #     except Exception as e:
-    #         logger.error(f"LLM response generation failed: {e}")
-    #         raise HTTPException(status_code=500, detail=f"LLM response generation failed: {str(e)}")
-    # else:
-    #     return {
-    #         "query": request.query,
-    #         "results": results,
-    #         # "results_content": results_content,
-    #         "context": context,
-    #     }
+        if response.status_code == 200:
+            return json.loads(text)
+
+    except Exception as e:
+        logger.error(f"Failed to list available LLMs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list available LLMs: {str(e)}")

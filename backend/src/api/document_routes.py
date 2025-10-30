@@ -11,7 +11,7 @@ router = APIRouter()
 
 document_service = DocumentService()
 
-@router.post("/documents/group")
+@router.post("/group")
 async def create_document_group(name: str = Query(...), description: Optional[str] = Query(default=None), color: str = Query(...)):
     """Create a new document group."""
     try:
@@ -22,7 +22,7 @@ async def create_document_group(name: str = Query(...), description: Optional[st
         raise HTTPException(status_code=500, detail="Failed to create document group.")
 
 
-@router.get("/documents/groups", response_model=List[DocumentGroupResponse])
+@router.get("/group", response_model=List[DocumentGroupResponse])
 async def list_document_groups(limit: int = 50, offset: int = 0):
     """List all document groups."""
     try:
@@ -43,3 +43,25 @@ async def list_document_groups(limit: int = 50, offset: int = 0):
     except Exception as e:
         logger.error(f"Failed to list documents: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list documents: {str(e)}")
+    
+
+@router.get("/group/{id}", response_model=DocumentGroupResponse)
+async def get_document_group(id: str):
+    """Get document group by id."""
+    try:
+        group = await document_service.get_document_group(id)
+
+        return DocumentGroupResponse(
+            id=group.id,
+            name=group.name,
+            description=group.description,
+            color=group.color,
+            created_at=group.created_at,
+            documents=[{"id": doc.id, "filename": doc.filename} for doc in group.documents] if group.documents else None
+        )
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Failed to get document group: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get document group.")

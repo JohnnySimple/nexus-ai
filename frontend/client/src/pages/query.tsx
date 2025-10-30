@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,9 +24,13 @@ import type { QuerySession, RagSettings, Document, DocumentGroup } from "@shared
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { set } from "date-fns";
 
 export default function Query() {
   const { toast } = useToast();
+  const [groups, setGroups] = useState<DocumentGroup[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+  const [llms, setLlms] = useState<[]>([]);
 
   const { data: settings } = useQuery<RagSettings>({
     queryKey: ["/api/settings"],
@@ -35,13 +40,43 @@ export default function Query() {
     queryKey: ["/api/queries/sessions"],
   });
 
-  const { data: documents = [] } = useQuery<Document[]>({
-    queryKey: ["/api/documents"],
-  });
+  // const { data: documents = [] } = useQuery<Document[]>({
+  //   queryKey: ["/api/documents"],
+  // });
 
-  const { data: groups = [] } = useQuery<DocumentGroup[]>({
-    queryKey: ["/api/document-groups"],
-  });
+  // const { data: groups = [] } = useQuery<DocumentGroup[]>({
+  //   queryKey: ["/api/document-groups"],
+  // });
+
+  // get document groups
+  useEffect(() => {
+    const groups = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/documents/group`)
+      .then((res) => res.json()).then((data) => {
+        setGroups(data);
+      }).catch((error) => {
+        console.error("Error fetching document groups:", error);
+      });
+  }, []);
+
+  // get documents
+  useEffect(() => {
+    const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents`)
+      .then((res) => res.json()).then((data) => {
+        setDocuments(data);
+      }).catch((error) => {
+        console.error("Error fetching documents:", error);
+      });
+  }, []);
+
+  // get llms
+  useEffect(() => {
+    const llms = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/llms`)
+      .then((res) => res.json()).then((data) => {
+        setLlms(data.models);
+      }).catch((error) => {
+        console.error("Error fetching LLMs:", error);
+      });
+  }, []);
 
   const form = useForm<QueryFormData>({
     resolver: zodResolver(queryFormSchema),
@@ -184,7 +219,7 @@ export default function Query() {
                                     htmlFor={`doc-${doc.id}`}
                                     className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                   >
-                                    {doc.name}
+                                    {doc.filename}
                                   </label>
                                 </div>
                               ))
@@ -270,10 +305,19 @@ export default function Query() {
                                 <SelectValue placeholder="Select model" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="gpt-4">GPT-4</SelectItem>
+                                {/* <SelectItem value="gpt-4">GPT-4</SelectItem>
                                 <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
                                 <SelectItem value="claude-3">Claude 3</SelectItem>
-                                <SelectItem value="local-llm">Local LLM</SelectItem>
+                                <SelectItem value="local-llm">Local LLM</SelectItem> */}
+                                {
+                                  llms.length === 0 ? (
+                                    <SelectItem value="none">No models available</SelectItem>
+                                  ) : (
+                                    llms.map((llm: any) => (
+                                      <SelectItem key={llm.name} value={llm.model as string}>{llm.name}</SelectItem>
+                                    ))
+                                  )
+                                }
                               </SelectContent>
                             </Select>
                           </FormControl>

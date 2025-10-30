@@ -84,7 +84,8 @@ export default function Documents() {
 
   const createGroupMutation = useMutation({
     mutationFn: async (data: DocumentGroupFormData) => {
-      return apiRequest("POST", "/api/document-groups", data);
+      // return apiRequest("POST", "/api/document-groups", data);
+      return apiRequest("POST", `${import.meta.env.VITE_API_BASE_URL}/api/documents/group?name=${encodeURIComponent(data.name)}&description=${encodeURIComponent(data.description || "")}&color=${encodeURIComponent(data.color)}`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/document-groups"] });

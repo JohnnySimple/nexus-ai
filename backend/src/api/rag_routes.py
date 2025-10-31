@@ -25,7 +25,7 @@ router = APIRouter()
 rag_service = RagService()
 
 @router.post("/documents/upload", response_model=DocumentIngestResponse)
-async def upload_document(file: UploadFile, group_id: Optional[str] = Query(default=None)):
+async def upload_document(file: UploadFile = File(...), group_id: Optional[str] = Query(default=None)):
     """Upload and ingest a document into the RAG system."""
     try:
         doc_type = helper_functions.get_file_type(file.filename)
@@ -184,18 +184,18 @@ async def list_documents(limit: int = 50, offset: int = 0):
         logger.error(f"Failed to list documents: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list documents: {str(e)}")
 
-@router.delete("/documents/{document_id}")
-async def delete_document(document_id: str):
-    """Delete a document from the RAG system."""
-    try:
-        success = await rag_service.delete_document(document_id)
-        if success:
-            return {"status": "Document deleted successfully"}
-        else:
-            raise HTTPException(status_code=404, detail="Document not found")
-    except Exception as e:
-        logger.error(f"Failed to delete document: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
+# @router.delete("/documents/{document_id}")
+# async def delete_document(document_id: str):
+#     """Delete a document from the RAG system."""
+#     try:
+#         success = await rag_service.delete_document(document_id)
+#         if success:
+#             return {"status": "Document deleted successfully"}
+#         else:
+#             raise HTTPException(status_code=404, detail="Document not found")
+#     except Exception as e:
+#         logger.error(f"Failed to delete document: {e}")
+#         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
 
 @router.get("/query", response_model=DocumentQueryResponse)

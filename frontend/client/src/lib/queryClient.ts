@@ -18,15 +18,23 @@ export async function apiRequest(
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-  
-  if (data) {
+
+  let body: BodyInit | undefined = undefined;
+
+  if (data instanceof FormData) {
+    body = data;
+  } else if (data) {
     headers["Content-Type"] = "application/json";
+    body = JSON.stringify(data);
   }
+
+  console.log(body);
 
   const res = await fetch(url, {
     method,
     headers,
-    body: data ? JSON.stringify(data) : undefined,
+    // body: data ? JSON.stringify(data) : undefined,
+    body,
     credentials: "include",
   });
 

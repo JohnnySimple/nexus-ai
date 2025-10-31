@@ -70,3 +70,21 @@ class DocumentService:
                 return True
         else:
             pass
+
+    async def delete_document(self, id: str):
+        """
+        Delete document by id
+        """
+        if settings.USE_DB:
+            async for session in get_session():
+                document = await get_document_by_id(session, id)
+
+                if not document:
+                    raise HTTPException(status_code=404, detail="Document not found")
+                
+                await session.delete(document)
+                await session.commit()
+
+                return True
+        else:
+            pass

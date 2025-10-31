@@ -80,3 +80,14 @@ async def delete_document_group(id: str):
         raise HTTPException(status_code=500, detail="Failed to delete document group.")
 
 
+@router.delete("/{id}")
+async def delete_document(id: str):
+    """Delete document by id."""
+    try:
+        await document_service.delete_document(id)
+        return {"status": "success", "message": "Document deleted successfully."}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Failed to delete document: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete document.")

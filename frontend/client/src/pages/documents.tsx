@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -38,12 +38,16 @@ export default function Documents() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [documentGroups, setDocumentGroups] = useState<DocumentGroup[]>([]);
+  const [documents, setDocuments] = useState<[]>([]);
+  const [groupId, setGroupId] = useState<string | null>(null);
   const [groupFilter, setGroupFilter] = useState<string>("all");
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
 
-  const { data: documents = [], isLoading } = useQuery<Document[]>({
-    queryKey: ["/api/documents"],
-  });
+  // const { data: documents = [], isLoading } = useQuery<Document[]>({
+  //   queryKey: ["/api/documents"],
+  // });
 
   const { data: groups = [] } = useQuery<DocumentGroup[]>({
     queryKey: ["/api/document-groups"],
@@ -58,11 +62,32 @@ export default function Documents() {
     },
   });
 
+  // get document groups
+    useEffect(() => {
+      const groups = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/documents/group`)
+        .then((res) => res.json()).then((data) => {
+          setDocumentGroups(data);
+        }).catch((error) => {
+          console.error("Error fetching document groups:", error);
+        });
+    }, []);
+
+    // get documents
+    useEffect(() => {
+      const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents`)
+        .then((res) => res.json()).then((data) => {
+          setDocuments(data);
+          setIsLoading(false)
+        }).catch((error) => {
+          console.error("Error fetching document:", error);
+        });
+    }, []);
+
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, groupId }: {file: File; groupId?: string}) => {
       const formData = new FormData();
       formData.append("file", file);
-      return apiRequest("POST", "/api/documents/upload", formData);
+      return apiRequest("POST", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents/upload?group_id=${groupId}`, formData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
@@ -100,7 +125,7 @@ export default function Documents() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/documents/${id}`, {});
+      return apiRequest("DELETE", `${import.meta.env.VITE_API_BASE_URL}/api/documents/${id}`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
@@ -112,8 +137,8 @@ export default function Documents() {
   });
 
   const handleFileUpload = () => {
-    if (selectedFile) {
-      uploadMutation.mutate(selectedFile);
+    if (selectedFile && groupId) {
+      uploadMutation.mutate({ file: selectedFile, groupId: groupId });
     }
   };
 
@@ -240,12 +265,12 @@ export default function Documents() {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span data-testid={`document-name-${doc.id}`}>{doc.name}</span>
+                        <span data-testid={`document-name-${doc.id}`}>{doc.filename}</span>
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="font-mono text-xs" data-testid={`document-type-${doc.id}`}>
-                        {doc.type}
+                        {doc.filename.split(".")[1]}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground" data-testid={`document-size-${doc.id}`}>
@@ -269,7 +294,14 @@ export default function Documents() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        onClick={() => deleteMutation.mutate(doc.id)}
+                        onClick={
+                          () => {
+                            let confirmDocumentDelete = confirm("Are you sure you want to delete?");
+                            if (confirmDocumentDelete) {
+                              deleteMutation.mutate(doc.id);
+                            }
+                          }
+                        }
                         data-testid={`button-delete-${doc.id}`}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -292,6 +324,34 @@ export default function Documents() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <label htmlFor="group" className="text-sm font-medium">Document Group (Optional)</label>
+              {
+                !documentGroups || documentGroups.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No document groups available. You can create one after uploading the document.
+                  </p>
+                ) : (
+                  <Select
+                    value={groupId || ""}
+                    onValueChange={(value) => setGroupId(value || null)}
+                  >
+                    <SelectTrigger className="w-full" data-testid="select-upload-group">
+                      <SelectValue placeholder="Select a group" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No Group</SelectItem>
+                      {documentGroups.map((group) => (
+                        <SelectItem key={group.id} value={group.id}>
+                          {group.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )
+              }
+              
+            </div>
             <div className="space-y-2">
               <label htmlFor="file" className="text-sm font-medium">Document File</label>
               <Input

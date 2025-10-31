@@ -22,7 +22,7 @@ class DocumentGroup(SQLModel, table=True):
     description: str
     color: str
     created_at: str
-    documents: List["Document"] = Relationship(back_populates="document_group")
+    documents: List["Document"] = Relationship(back_populates="document_group", sa_relationship_kwargs={"cascade": "all, delete"})
 
 class Document(SQLModel, table=True):
     __tablename__ = "documents"
@@ -36,10 +36,10 @@ class Document(SQLModel, table=True):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     filename: str
     created_at: str
-    pages: List["Page"] = Relationship(back_populates="document")
+    pages: List["Page"] = Relationship(back_populates="document", sa_relationship_kwargs={"cascade": "all, delete"})
     document_group_id: str = Field(foreign_key="document_groups.id")
     document_group: Optional[DocumentGroup] = Relationship(back_populates="documents")
-    rag_settings: "RagSetting" = Relationship(back_populates="document")
+    rag_settings: "RagSetting" = Relationship(back_populates="document", sa_relationship_kwargs={"cascade": "all, delete"})
 
 
 class Page(SQLModel, table=True):
@@ -52,7 +52,7 @@ class Page(SQLModel, table=True):
     document_id: str = Field(foreign_key="documents.id")
 
     document: Optional[Document] = Relationship(back_populates="pages")
-    embeddings: List["ChunkEmbedding"] = Relationship(back_populates="page")
+    embeddings: List["ChunkEmbedding"] = Relationship(back_populates="page", sa_relationship_kwargs={"cascade": "all, delete"})
 
 
 class ChunkEmbedding(SQLModel, table=True):

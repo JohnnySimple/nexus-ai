@@ -52,3 +52,21 @@ class DocumentService:
                 return document_groups
         else:
             pass
+
+    async def delete_document_group(self, id: str):
+        """
+        Delete document group by id
+        """
+        if settings.USE_DB:
+            async for session in get_session():
+                document_group = await get_document_group_by_id(session, id)
+                
+                if not document_group:
+                    raise HTTPException(status_code=404, detail="Document group not found")
+                
+                await session.delete(document_group)
+                await session.commit()
+                
+                return True
+        else:
+            pass

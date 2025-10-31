@@ -65,3 +65,18 @@ async def get_document_group(id: str):
     except Exception as e:
         logger.error(f"Failed to get document group: {e}")
         raise HTTPException(status_code=500, detail="Failed to get document group.")
+
+
+@router.delete("/group/{id}")
+async def delete_document_group(id: str):
+    """Delete document group by id."""
+    try:
+        await document_service.delete_document_group(id)
+        return {"status": "success", "message": "Document group deleted successfully."}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Failed to delete document group: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete document group.")
+
+

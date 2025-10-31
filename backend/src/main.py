@@ -13,6 +13,7 @@ from src.config import app_configs, settings
 from src.api.rag_routes import router as rag_router
 from src.api.auth.user_routes import router as auth_router
 from src.api.document_routes import router as document_router
+from src.api.query_routes import router as query_router
 from src.schemas.user_schema import ResponseError
 
 load_dotenv()
@@ -36,6 +37,7 @@ api_router = APIRouter(prefix="/api")
 api_router.include_router(rag_router, prefix="/rag", tags=["RAG"])
 api_router.include_router(auth_router, prefix="/auth", tags=["Auth"])
 api_router.include_router(document_router, prefix="/documents", tags=["Documents"])
+api_router.include_router(query_router, prefix="/query", tags=["Query"])
 
 app = FastAPI(**app_configs, lifespan=lifespan)
 

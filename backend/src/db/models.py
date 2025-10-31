@@ -77,3 +77,21 @@ class RagSetting(SQLModel, table=True):
     rerank: bool
     document_id: str = Field(foreign_key="documents.id")
     document: Optional[Document] = Relationship(back_populates="rag_settings")
+
+
+class QuerySession(SQLModel, table=True):
+    __tablename__ = "query_sessions"
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    query: str = Field(nullable=False)
+    response: str = Field(nullable=False)
+    model: str = Field(nullable=False)
+    top_k: Optional[int] = Field(nullable=True)
+    temperature: Optional[float]
+    chunk_size: Optional[int]
+    chunk_overlap: Optional[int]
+    # retrieved_chunks: List[str] = Field(sa_column_kwargs={"type_": "TEXT[]"})
+    retrieved_chunks: str
+    created_at: str
+    response_time: Optional[float]
+    user_id: str = Field(foreign_key="users.id", nullable=False)

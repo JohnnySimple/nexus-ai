@@ -91,7 +91,7 @@ class QuerySession(SQLModel, table=True):
     chunk_size: Optional[int]
     chunk_overlap: Optional[int]
     # retrieved_chunks: List[str] = Field(sa_column_kwargs={"type_": "TEXT[]"})
-    retrieved_chunks: str
+    retrieved_chunks: list[str] = Field(sa_column=Column(JSON), default_factory=list)
     created_at: str
     response_time: Optional[float]
     user_id: str = Field(foreign_key="users.id", nullable=False)

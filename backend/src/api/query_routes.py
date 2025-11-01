@@ -3,6 +3,8 @@ from src.services.query_service import QueryService
 from src.schemas.query_schema import QuerySessionCreateRequest
 
 import logging
+import ast
+import json
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -40,6 +42,21 @@ async def get_query_session_by_user_id(user_id: str):
     """Get query session by id."""
     try:
         query_session = await query_service.get_query_sessions_by_user_id(user_id)
+
+        for s in query_session:
+            val = s.retrieved_chunks
+            try:
+                val = json.loads(val)
+            except json.JSONDecodeError:
+                pass
+
+            if isinstance(val, str):
+                try:
+                    val = ast.literal_eval(val)
+                except Exception:
+                    val = []
+            
+            s.retrieved_chunks = val
 
         return query_session
 

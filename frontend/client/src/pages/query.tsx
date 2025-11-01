@@ -29,6 +29,7 @@ import { set } from "date-fns";
 export default function Query() {
   const { toast } = useToast();
   const [groups, setGroups] = useState<DocumentGroup[]>([]);
+  const [sessions, setSessions] = useState<[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
   const [llms, setLlms] = useState<[]>([]);
 
@@ -36,9 +37,9 @@ export default function Query() {
     queryKey: ["/api/settings"],
   });
 
-  const { data: sessions = [] } = useQuery<QuerySession[]>({
-    queryKey: ["/api/queries/sessions"],
-  });
+  // const { data: sessions = [] } = useQuery<QuerySession[]>({
+  //   queryKey: ["/api/queries/sessions"],
+  // });
 
   // const { data: documents = [] } = useQuery<Document[]>({
   //   queryKey: ["/api/documents"],
@@ -57,6 +58,17 @@ export default function Query() {
         console.error("Error fetching document groups:", error);
       });
   }, []);
+
+  // get sessions
+  useEffect(() => {
+    const user_id = JSON.parse(localStorage.getItem("user")).id;
+    const sessions = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/query/query-session/user/${user_id}`)
+      .then((res) => res.json()).then((data) => {
+        setSessions(data);
+      }).catch((error) => {
+        console.error("Error fetching query sessions", error);
+      })
+  }, [])
 
   // get documents
   useEffect(() => {
@@ -100,7 +112,8 @@ export default function Query() {
         top_k: data.topK,
         // document_ids: data.documentIds,
         with_llm_response: true,
-        user_id: JSON.parse(localStorage.getItem("user")).id
+        user_id: JSON.parse(localStorage.getItem("user")).id,
+        model: data.model
       });
 
       data.documentIds?.forEach(id => {
@@ -387,7 +400,7 @@ export default function Query() {
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <Clock className="h-3 w-3" />
                               <span data-testid={`query-time-${session.id}`}>
-                                {new Date(session.timestamp).toLocaleString()}
+                                {new Date(session.created_at).toLocaleString()}
                               </span>
                               <span>•</span>
                               <Badge variant="outline" className="text-xs" data-testid={`query-model-${session.id}`}>
@@ -404,18 +417,18 @@ export default function Query() {
                             <p className="text-sm text-muted-foreground leading-relaxed" data-testid={`response-text-${session.id}`}>
                               {session.response}
                             </p>
-                            {session.retrievedChunks.length > 0 && (
+                            {session.retrieved_chunks.length > 0 && (
                               <div className="mt-2 pt-2 border-t border-border">
                                 <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
                                   <Layers className="h-3 w-3" />
                                   <span data-testid={`chunks-count-${session.id}`}>
-                                    Retrieved {session.retrievedChunks.length} chunks
+                                    Retrieved {session.retrieved_chunks.length} chunks
                                   </span>
                                   <span>•</span>
-                                  <span data-testid={`response-time-${session.id}`}>{session.responseTime}ms</span>
+                                  <span data-testid={`response-time-${session.id}`}>{session.response_time}ms</span>
                                 </div>
                                 <div className="space-y-1">
-                                  {session.retrievedChunks.slice(0, 2).map((chunk, idx) => (
+                                  {session.retrieved_chunks.flat(1).slice(0,2).map((chunk, idx) => (
                                     <div
                                       key={idx}
                                       className="text-xs bg-muted rounded p-2 font-mono line-clamp-2"

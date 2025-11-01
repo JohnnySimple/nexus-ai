@@ -94,11 +94,25 @@ export default function Query() {
 
   const queryMutation = useMutation({
     mutationFn: async (data: QueryFormData) => {
-      return apiRequest("POST", "/api/query", data);
+
+      const params = new URLSearchParams({
+        query: data.query,
+        top_k: data.topK,
+        // document_ids: data.documentIds,
+        with_llm_response: true,
+        user_id: JSON.parse(localStorage.getItem("user")).id
+      });
+
+      data.documentIds?.forEach(id => {
+        params.append("document_ids", id);
+      });
+      
+      const res = await apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/query?${params.toString()}`);
+      const response = await res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/queries/sessions"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/queries/recent"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/queries/sessions"] });
+      // queryClient.invalidateQueries({ queryKey: ["/api/queries/recent"] });
       form.reset({
         query: "",
         model: form.getValues("model"),

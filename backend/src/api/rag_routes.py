@@ -11,6 +11,8 @@ from src.schemas.rag_schema import DocumentIngestRequest, DocumentIngestResponse
 from src.schemas.chat_schema import ChatRequest
 
 from src.services.rag_service import RagService
+from src.services.query_service import QueryService
+from src.schemas.query_schema import QuerySessionCreateRequest
 from src.config import settings
 import src.helper_functions as helper_functions
 import src.services.rag_helpers as rag_helpers
@@ -23,6 +25,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 rag_service = RagService()
+query_service = QueryService()
 
 @router.post("/documents/upload", response_model=DocumentIngestResponse)
 async def upload_document(file: UploadFile = File(...), group_id: Optional[str] = Query(default=None)):
@@ -204,7 +207,9 @@ async def query_documents(
     top_k: int = Query(5),
     document_ids: List[str] = Query([]),
     with_llm_response: bool = Query(False),
-    stream: bool = Query(False)
+    stream: bool = Query(False),
+    model: Optional[str] = "",
+    user_id: str = ""
 ):
     request = DocumentQueryRequest(
         query=query,
@@ -227,6 +232,21 @@ async def query_documents(
 
     context = rag_helpers.build_context(results, request)
     output = await rag_helpers.get_query_output(request, context, results)
+
+    # save query session
+    relevant_chunks = [chunk for doc in output["results"] for chunk in doc["relevant_chunks"]]
+
+    query_session_payload = QuerySessionCreateRequest(
+        query=query,
+        response=output["llm_response"],
+        model=model,
+        top_k=top_k,
+        retrieved_chunks=str(relevant_chunks),
+        user_id=user_id
+    )
+
+    await query_service.create_query_session(query_session_payload)
+
     return output
 
 

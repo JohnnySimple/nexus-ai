@@ -6,10 +6,10 @@ class QuerySessionCreateRequest(BaseModel):
     response: str
     model: str
     top_k: Optional[int]
-    temperature: Optional[float]
-    chunk_size: Optional[int]
-    chunk_overlap: Optional[int]
+    temperature: Optional[float] = Field(default=None)
+    chunk_size: Optional[int] = Field(default=None)
+    chunk_overlap: Optional[int] = Field(default=None)
     retrieved_chunks: str
     # created_at: str
-    response_time: Optional[float]
+    response_time: Optional[float] = Field(default=None)
     user_id: str

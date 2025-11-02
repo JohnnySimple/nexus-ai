@@ -25,13 +25,21 @@ def build_context(results, request) -> str:
 
     return context
 
+def format_history(history: list) -> str:
+    """Format history to be passed to context"""
+    formatted_history = ""
+    for turn in history:
+        formatted_history += f"User: {turn.query}\nAssistant: {turn.response}\n"
+    return formatted_history
 
-async def get_query_output(request, context, results) -> dict:
+
+async def get_query_output(request, context, results, history) -> dict:
     """Generate final output for a RAG query."""
     if request.with_llm_response:
         try:
+            formatted_history = format_history(history)
             prompt_template = helper_functions.get_rag_prompt_template()
-            prompt = prompt_template.format(question=request.query, context=context)
+            prompt = prompt_template.format(history=formatted_history, question=request.query, context=context)
 
             from src.services.ollama_client_service import OllamaClient
             ollama_client = OllamaClient()

@@ -209,8 +209,10 @@ async def query_documents(
     with_llm_response: bool = Query(False),
     stream: bool = Query(False),
     model: Optional[str] = "",
-    user_id: str = ""
+    user_id: str = "",
+    conversation_id: str = ""
 ):
+    """Query documents in the RAG system."""
     request = DocumentQueryRequest(
         query=query,
         top_k=top_k,
@@ -218,7 +220,6 @@ async def query_documents(
         with_llm_response=with_llm_response,
         stream=stream
     )
-    """Query documents in the RAG system."""
 
     if request.stream:
         from src.api.rag_stream import query_docs
@@ -230,8 +231,13 @@ async def query_documents(
         document_ids=request.document_ids
     )
 
+    # retrieve conversation history
+    history = []
+    if conversation_id:
+        history = await query_service.get_query_sessions_by_conversation_id(conversation_id)
+
     context = rag_helpers.build_context(results, request)
-    output = await rag_helpers.get_query_output(request, context, results)
+    output = await rag_helpers.get_query_output(request, context, results, history)
 
     # save query session
     relevant_chunks = [chunk for doc in output["results"] for chunk in doc["relevant_chunks"]]

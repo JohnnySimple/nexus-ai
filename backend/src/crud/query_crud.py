@@ -22,7 +22,8 @@ async def create_query_session(session: AsyncSession, payload: QuerySessionCreat
         retrieved_chunks=payload.retrieved_chunks,
         created_at=time.strftime("%Y-%m-%d %H:%M:%S"),
         response_time=payload.response_time,
-        user_id=payload.user_id     
+        user_id=payload.user_id,
+        conversation_id=payload.conversation_id
     )
 
     session.add(query_session)
@@ -39,7 +40,14 @@ async def get_query_session_by_id(session: AsyncSession, id: str) -> QuerySessio
 
 
 async def get_query_sessions_by_user_id(session: AsyncSession, user_id: str) -> QuerySession | None:
-    """Retrieve a query session by user id"""
+    """Retrieve query sessions by user id"""
     results = await session.execute(select(QuerySession).where(QuerySession.user_id == user_id))
+    query_sessions = results.scalars().all()
+    return query_sessions
+
+
+async def get_query_sessions_by_conversation_id(session: AsyncSession, conversation_id: str) -> list[QuerySession] | None:
+    """Retrieve query sessions by conversation id"""
+    results = await session.execute(select(QuerySession).where(QuerySession.conversation_id == conversation_id))
     query_sessions = results.scalars().all()
     return query_sessions

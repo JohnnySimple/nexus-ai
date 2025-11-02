@@ -2,7 +2,8 @@ from fastapi import HTTPException
 from src.config import settings
 from src.db.database import get_session
 
-from src.crud.query_crud import create_query_session, get_query_session_by_id, get_query_sessions_by_user_id
+from src.crud.query_crud import create_query_session, get_query_session_by_id, get_query_sessions_by_user_id,\
+    get_query_sessions_by_conversation_id
 
 
 class QueryService:
@@ -32,9 +33,19 @@ class QueryService:
     async def get_query_sessions_by_user_id(self, user_id):
          """Get query session by user id"""
          async for session in get_session():
-                query_session = await get_query_sessions_by_user_id(session, user_id)
+                query_sessions = await get_query_sessions_by_user_id(session, user_id)
                 
-                if not query_session:
+                if not query_sessions:
                     raise HTTPException(status_code=404, detail="Query session not found")
                 
-                return query_session
+                return query_sessions
+    
+    async def get_query_sessions_by_conversation_id(self, conversation_id):
+         """Get query sessions by conversation id"""
+         async for session in get_session():
+              query_sessions = await get_query_sessions_by_conversation_id(session, conversation_id)
+              
+              if not query_sessions:
+                   raise HTTPException(status_code=404, detail="No query sessions found.")
+              
+              return query_sessions

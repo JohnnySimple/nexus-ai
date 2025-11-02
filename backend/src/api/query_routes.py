@@ -38,12 +38,12 @@ async def get_query_session_by_id(id: str):
         raise HTTPException(status_code=500, detail="Failed to get query session.")
     
 @router.get("/query-session/user/{user_id}")
-async def get_query_session_by_user_id(user_id: str):
-    """Get query session by id."""
+async def get_query_sessions_by_user_id(user_id: str):
+    """Get query session by user id."""
     try:
-        query_session = await query_service.get_query_sessions_by_user_id(user_id)
+        query_sessions = await query_service.get_query_sessions_by_user_id(user_id)
 
-        for s in query_session:
+        for s in query_sessions:
             val = s.retrieved_chunks
             try:
                 val = json.loads(val)
@@ -58,10 +58,39 @@ async def get_query_session_by_user_id(user_id: str):
             
             s.retrieved_chunks = val
 
-        return query_session
+        return query_sessions
 
     except HTTPException as he:
         raise he
     except Exception as e:
         logger.error(f"Failed to get query session: {e}")
         raise HTTPException(status_code=500, detail="Failed to get query session.")
+    
+@router.get("/query-session/conversation/{conversation_id}")
+async def get_query_sessions_by_conversation_id(conversation_id: str):
+    """Get query sessions by conversation id"""
+    try:
+        query_sessions = await query_service.get_query_sessions_by_conversation_id(conversation_id)
+
+        for s in query_sessions:
+            val = s.retrieved_chunks
+            try:
+                val = json.loads(val)
+            except json.JSONDecodeError:
+                pass
+
+            if isinstance(val, str):
+                try:
+                    val = ast.literal_eval(val)
+                except Exception:
+                    val = []
+            
+            s.retrieved_chunks = val
+
+        return query_sessions
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Failed to get query sessions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get query session.")
+

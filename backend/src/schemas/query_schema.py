@@ -13,3 +13,4 @@ class QuerySessionCreateRequest(BaseModel):
     # created_at: str
     response_time: Optional[float] = Field(default=None)
     user_id: str
+    conversation_id: str

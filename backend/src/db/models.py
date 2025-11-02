@@ -83,6 +83,7 @@ class QuerySession(SQLModel, table=True):
     __tablename__ = "query_sessions"
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    conversation_id: str = Field(default_factory=lambda: str(uuid.uuid4()), index=True, nullable=True)
     query: str = Field(nullable=False)
     response: str = Field(nullable=False)
     model: str = Field(nullable=False)

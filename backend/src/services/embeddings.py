@@ -188,7 +188,8 @@ class Embeddings:
         return self.model.similarity(vec1, vec2)
     
     def get_top_similarities_from_page(self, query: str, page_texts_embeddings,
-                                       page_split, top_k: int = 5, document_id: str = "", page_number: int = 0) -> list[tuple]:
+                                       page_split, top_k: int = 5, document_id: str = "", page_number: int = 0,
+                                       document_name: str = "") -> list[tuple]:
         """Get answer to the query from the page texts embeddings"""
         question_embedding = self.model.encode(query)
         similarities = self.similarity(page_texts_embeddings, question_embedding)
@@ -201,9 +202,18 @@ class Embeddings:
         top_similarities_answers = [page_split[i] if i < len(page_split) else None
                                     for i in top_indices]
 
-        results =  [(ans, round(float(val), 4), document_id, page_number) for ans, val
-                    in zip(top_similarities_answers, top_values)]
-        return results
+        # results =  [(document_name, ans, round(float(val), 4), document_id, page_number) for ans, val
+        #             in zip(top_similarities_answers, top_values)]
+        results_dict = [{
+                            "document_name": document_name,
+                            "answer": ans,
+                            "similarity_score": round(float(val), 4),
+                            "document_id": document_id,
+                            "page_number": page_number
+                        }
+                        for ans, val in zip(top_similarities_answers, top_values)]
+        # return results
+        return results_dict
 
     def search_with_documents(self, query: str, documents: list, top_k: int = 5) -> list[dict]:
         """Search for similar chunks in all specified documents"""
@@ -214,15 +224,16 @@ class Embeddings:
 
         for doc in documents:
 
-            print(f"keys: {list(doc.keys())}")
-            print(f"doc: {doc['content'][0]['embedding']}")
+            # print(f"keys: {list(doc.keys())}")
+            # print(f"doc: {doc['content'][0]['embedding']}")
 
             similar_chunks = []
             
             # for page_index, page_embedding in enumerate(doc["embedding"]):
             for page in doc["content"]:
                 similarity = self.get_top_similarities_from_page(query, page["embedding"], page["chunks"], top_k,
-                                                                    document_id=doc["id"], page_number=page["page_number"])
+                                                                    document_id=doc["id"], page_number=page["page_number"],
+                                                                    document_name=doc["metadata"]["filename"])
                 
                 if settings.RERANK_TOP_K:
                     similarity = self.rerank(query, similarity, top_k/2)
@@ -257,7 +268,8 @@ class Embeddings:
                 
                 for page_index, page_embedding in enumerate(doc["embedding"]):
                     similarity = self.get_top_similarities_from_page(query, page_embedding, doc["chunks"][page_index], top_k,
-                                                                     document_id=doc["id"], page_number=page_index)
+                                                                     document_id=doc["id"], page_number=page_index,
+                                                                     document_name=doc["metadata"]["filename"])
                     
                     if settings.RERANK_TOP_K:
                         similarity = self.rerank(query, similarity, top_k/2)
@@ -279,14 +291,17 @@ class Embeddings:
         """Rerank the top similar chunks using a cross-encoder model"""
         reranker = CrossEncoder(settings.CROSS_ENCODER_MODEL)
 
-        pairs = [(query, chunk[0]) for chunk in similarity if chunk[0] is not None]
+        # pairs = [(query, chunk[0]) for chunk in similarity if chunk[0] is not None]
+        pairs = [(query, chunk["answer"]) for chunk in similarity if chunk["answer"] is not None]
         scores = reranker.predict(pairs).tolist()
 
         for index, chunk in enumerate(similarity):
-            chunk = list(chunk)
-            chunk.append(scores[index])
-            similarity[index] = tuple(chunk)
+            # chunk = list(chunk)
+            # chunk.append(scores[index])
+            chunk["rerank_score"] = scores[index]
+            # similarity[index] = tuple(chunk)
 
-        reranked = sorted(similarity, key=lambda x: x[4], reverse=True)[:int(top_k)]  # x[4] is the new score
+        # reranked = sorted(similarity, key=lambda x: x[4], reverse=True)[:int(top_k)]  # x[4] is the new score
+        reranked = sorted(similarity, key=lambda x: x["rerank_score"], reverse=True)[:int(top_k)]
 
         return reranked

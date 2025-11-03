@@ -35,7 +35,7 @@ class DocumentQueryRequest(BaseModel):
 
 class QueryResults(BaseModel):
     document: Dict
-    relevant_chunks: List[List[List]]
+    relevant_chunks: List[List[dict]]
 
 class DocumentQueryResponse(BaseModel):
     query: str

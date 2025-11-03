@@ -13,14 +13,25 @@ def build_context(results, request) -> str:
     for res in results:
         doc_name = res["document"]["filename"]
         for group in res["relevant_chunks"]:
-            for text, score, doc_id, page, reranked_value in group:
-                all_chunks.append((text, score, doc_name, page))
+            # for filename, text, score, doc_id, page, reranked_value in group:
+            for item in group:
+                # all_chunks.append((text, score, doc_name, page))
+                all_chunks.append({
+                    "document_name": item["document_name"],
+                    "answer": item["answer"],
+                    "similarity_score": item["similarity_score"],
+                    "document_id": item["document_id"],
+                    "page_number": item["page_number"]
+                })
     
-    top_chunks = sorted(all_chunks, key=lambda x: x[1], reverse=True)[:request.top_k]
+    # top_chunks = sorted(all_chunks, key=lambda x: x[1], reverse=True)[:request.top_k]
+    top_chunks = sorted(all_chunks, key=lambda x: x["similarity_score"], reverse=True)[:request.top_k]
 
     context = "\n".join(
-        f"- (score={score:.4f}, doc={doc_name.split('/')[-1]}, page={page}) {text}"
-        for text, score, doc_name, page in top_chunks
+        # f"- (score={score:.4f}, doc={doc_name.split('/')[-1]}, page={page}) {text}"
+        # for text, score, doc_name, page in top_chunks
+        f"- (score={item['similarity_score']:.4f}, doc={item['document_name'].split('/')[-1]}, page={item['page_number']}) {item['answer']}"
+        for item in top_chunks
     )
 
     return context

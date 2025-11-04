@@ -428,13 +428,21 @@ export default function Query() {
                                   <span data-testid={`response-time-${session.id}`}>{session.response_time}ms</span>
                                 </div>
                                 <div className="space-y-1">
-                                  {session.retrieved_chunks.flat(1).slice(0,2).map((chunk, idx) => (
+                                  {/* {session.retrieved_chunks.flat(1).slice(0,2).map((chunk, idx) => (
                                     <div
                                       key={idx}
                                       className="text-xs bg-muted rounded p-2 font-mono line-clamp-2"
                                       data-testid={`chunk-${session.id}-${idx}`}
                                     >
                                       {chunk}
+                                    </div>
+                                  ))} */}
+                                  {session.retrieved_chunks[0].slice(0,2).map((chunk, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="text-xs bg-muted rounded p-2 font-mono line-clamp-2"
+                                      data-testid={`chunk-${session.id}-${idx}`}>
+                                      {chunk.document_name} - Pg. {chunk.page_number}
                                     </div>
                                   ))}
                                 </div>

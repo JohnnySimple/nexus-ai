@@ -1,4 +1,4 @@
-import { Home, FileText, Database, Search, Settings, BarChart3, Shield, LogOut } from "lucide-react";
+import { Home, FileText, Database, Search, MessageSquare, Settings, BarChart3, Shield, LogOut } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -34,6 +34,11 @@ const menuItems = [
     title: "Query Interface",
     url: "/query",
     icon: Search,
+  },
+  {
+    title: "Conversation",
+    url: "/conversation",
+    icon: MessageSquare,
   },
   {
     title: "Analytics",

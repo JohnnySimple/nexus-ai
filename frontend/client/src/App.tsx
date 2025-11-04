@@ -12,6 +12,7 @@ import Dashboard from "@/pages/dashboard";
 import Documents from "@/pages/documents";
 import Embeddings from "@/pages/embeddings";
 import Query from "@/pages/query";
+import Conversation from "@/pages/conversation";
 import Analytics from "@/pages/analytics";
 import Settings from "@/pages/settings";
 import Admin from "@/pages/admin";
@@ -53,6 +54,9 @@ function Router() {
       </Route>
       <Route path="/query">
         {() => <ProtectedRoute component={Query} />}
+      </Route>
+      <Route path="/conversation">
+        {() => <ProtectedRoute component={Conversation} />}
       </Route>
       <Route path="/analytics">
         {() => <ProtectedRoute component={Analytics} />}

@@ -1,7 +1,7 @@
 """Query crud operations"""
 import time
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, func
 from sqlalchemy.orm import selectinload
 from src.db.models import QuerySession
 from src.schemas.query_schema import QuerySessionCreateRequest
@@ -59,3 +59,9 @@ async def get_query_sessions_by_conversation_id(session: AsyncSession,
                                     .where(QuerySession.conversation_id == conversation_id))
     query_sessions = results.scalars().all()
     return query_sessions
+
+
+async def get_total_query_sessions_by_user_id(session: AsyncSession, user_id: str) -> int:
+    """Retrieve total query sessions by user id"""
+    results = await session.execute(select(func.count()).select_from(QuerySession).where(QuerySession.user_id == user_id))
+    return results.scalar_one()

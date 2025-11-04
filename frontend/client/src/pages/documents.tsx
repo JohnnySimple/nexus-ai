@@ -288,7 +288,7 @@ export default function Documents() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm" data-testid={`document-date-${doc.id}`}>
-                      {new Date(doc.uploadedAt).toLocaleDateString()}
+                      {new Date(doc.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button

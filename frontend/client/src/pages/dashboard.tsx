@@ -4,8 +4,11 @@ import { FileText, Database, Search, TrendingUp, Clock, Zap } from "lucide-react
 import { Line, LineChart, Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import type { AnalyticsData, Document, QuerySession } from "@shared/schema";
+import { useState, useEffect } from "react";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Dashboard() {
+  const [stats, setStats] = useState<{}>({});
   const { data: analytics = [] } = useQuery<AnalyticsData[]>({
     queryKey: ["/api/analytics"],
   });
@@ -35,6 +38,18 @@ export default function Dashboard() {
     },
   };
 
+  // get dashbaord stats
+    useEffect(() => {
+      const user_id = JSON.parse(localStorage.getItem("user")).id;
+      const dashboardStats = apiRequest("GET",
+        `${import.meta.env.VITE_API_BASE_URL}/api/dashboard/stats/${user_id}`)
+      .then((res) => res.json()).then((data) => {
+          setStats(data);
+      }).catch((error) => {
+          console.error("Error fetching stats:", error);
+      });
+    }, []);
+
   return (
     <div className="space-y-6">
       <div>
@@ -52,7 +67,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold" data-testid="stat-total-queries">
-              {totalQueries.toLocaleString()}
+              {stats.query_count}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Last 7 days
@@ -67,7 +82,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold" data-testid="stat-total-documents">
-              {documents.length}
+              {stats.document_count}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               {documents.reduce((sum, doc) => sum + doc.chunkCount, 0)} total chunks

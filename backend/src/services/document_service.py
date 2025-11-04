@@ -3,7 +3,7 @@ from src.config import settings
 from src.db.database import get_session
 
 from src.crud.document_crud import get_document_by_id, get_document_group_by_id,\
-    get_all_document_groups, create_document_group
+    get_all_document_groups, create_document_group, get_total_documents
 
 
 class DocumentService:
@@ -88,3 +88,10 @@ class DocumentService:
                 return True
         else:
             pass
+
+    async def get_total_documents(self):
+         """Get total documents"""
+         async for session in get_session():
+            count = await get_total_documents(session)
+            
+            return count

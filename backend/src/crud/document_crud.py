@@ -1,5 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import select, func
 from sqlalchemy.orm import selectinload
 from src.db.models import DocumentGroup, Document, Page, ChunkEmbedding
 
@@ -96,3 +96,8 @@ async def get_all_documents(session: AsyncSession) -> List[Document]:
     ))
     documents = result.scalars().all()
     return documents
+
+async def get_total_documents(session: AsyncSession) -> int:
+    """Retrieve total documents"""
+    results = await session.execute(select(func.count()).select_from(Document))
+    return results.scalar_one()

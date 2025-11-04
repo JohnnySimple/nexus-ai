@@ -38,10 +38,10 @@ async def get_query_session_by_id(id: str):
         raise HTTPException(status_code=500, detail="Failed to get query session.")
     
 @router.get("/query-session/user/{user_id}")
-async def get_query_sessions_by_user_id(user_id: str):
+async def get_query_sessions_by_user_id(user_id: str, distinct_conversation: bool = False):
     """Get query session by user id."""
     try:
-        query_sessions = await query_service.get_query_sessions_by_user_id(user_id)
+        query_sessions = await query_service.get_query_sessions_by_user_id(user_id, distinct_conversation)
 
         for s in query_sessions:
             val = s.retrieved_chunks

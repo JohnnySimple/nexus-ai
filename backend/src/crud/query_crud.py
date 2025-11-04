@@ -1,13 +1,14 @@
+"""Query crud operations"""
+import time
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from sqlalchemy.orm import selectinload
 from src.db.models import QuerySession
 from src.schemas.query_schema import QuerySessionCreateRequest
 
-import time
 
-
-async def create_query_session(session: AsyncSession, payload: QuerySessionCreateRequest) -> QuerySession:
+async def create_query_session(session: AsyncSession,
+                               payload: QuerySessionCreateRequest) -> QuerySession:
     """
     Create a new query session
     """
@@ -39,15 +40,22 @@ async def get_query_session_by_id(session: AsyncSession, id: str) -> QuerySessio
     return query_session
 
 
-async def get_query_sessions_by_user_id(session: AsyncSession, user_id: str) -> QuerySession | None:
+async def get_query_sessions_by_user_id(session: AsyncSession, user_id: str,
+                                        distinct_conversation: bool = False) -> QuerySession | None:
     """Retrieve query sessions by user id"""
-    results = await session.execute(select(QuerySession).where(QuerySession.user_id == user_id))
+    if distinct_conversation:
+        results = await session.execute(select(QuerySession).distinct(QuerySession.conversation_id)
+                                        .where(QuerySession.user_id == user_id))
+    else:
+        results = await session.execute(select(QuerySession).where(QuerySession.user_id == user_id))
     query_sessions = results.scalars().all()
     return query_sessions
 
 
-async def get_query_sessions_by_conversation_id(session: AsyncSession, conversation_id: str) -> list[QuerySession] | None:
+async def get_query_sessions_by_conversation_id(session: AsyncSession,
+                                                conversation_id: str) -> list[QuerySession] | None:
     """Retrieve query sessions by conversation id"""
-    results = await session.execute(select(QuerySession).where(QuerySession.conversation_id == conversation_id))
+    results = await session.execute(select(QuerySession)
+                                    .where(QuerySession.conversation_id == conversation_id))
     query_sessions = results.scalars().all()
     return query_sessions

@@ -96,3 +96,4 @@ class QuerySession(SQLModel, table=True):
     created_at: str
     response_time: Optional[float]
     user_id: str = Field(foreign_key="users.id", nullable=False)
+    document_ids: list[str] = Field(sa_column=Column(JSON), default_factory=list)

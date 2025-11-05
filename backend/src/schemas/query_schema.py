@@ -14,3 +14,4 @@ class QuerySessionCreateRequest(BaseModel):
     response_time: Optional[float] = Field(default=None)
     user_id: str
     conversation_id: Optional[str] = Field(default=None)
+    document_ids: list

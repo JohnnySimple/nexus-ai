@@ -248,7 +248,8 @@ async def query_documents(
         model=model,
         top_k=top_k,
         retrieved_chunks=str(relevant_chunks),
-        user_id=user_id
+        user_id=user_id,
+        document_ids=document_ids
     )
 
     await query_service.create_query_session(query_session_payload)

@@ -231,16 +231,32 @@ export default function Conversation() {
     scrollToBottom();
   }, [selectedConversation]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || !selectedConversation) return;
 
-    const userMessage: Message = {
-      id: String(Date.now()),
-      type: "user",
-      content: inputValue.trim(),
-      timestamp: new Date(),
-    };
+    const params = new URLSearchParams({
+        query: inputValue,
+        // top_k: data.topK,
+        with_llm_response: true,
+        user_id: JSON.parse(localStorage.getItem("user")).id,
+        // model: data.model,
+        conversation_id: selectedConversation[0].conversation_id
+      });
+
+      selectedConversation[0].document_ids?.forEach(id => {
+        params.append("document_ids", id);
+      });
+      
+      const res = await apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/query?${params.toString()}`);
+      const response = await res.json();
+
+    // const userMessage: Message = {
+    //   id: String(Date.now()),
+    //   type: "user",
+    //   content: inputValue.trim(),
+    //   timestamp: new Date(),
+    // };
 
     // setConversations((prev) =>
     //   prev.map((conv) =>

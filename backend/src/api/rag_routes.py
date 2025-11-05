@@ -249,7 +249,8 @@ async def query_documents(
         top_k=top_k,
         retrieved_chunks=str(relevant_chunks),
         user_id=user_id,
-        document_ids=document_ids
+        document_ids=document_ids,
+        conversation_id=conversation_id
     )
 
     await query_service.create_query_session(query_session_payload)

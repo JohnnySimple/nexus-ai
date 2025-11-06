@@ -19,174 +19,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
-interface Message {
-  id: string;
-  type: "user" | "assistant";
-  content: string;
-  timestamp: Date;
-  chunks?: Array<{ filename: string; similarity: number }>;
-}
-
-interface Conversation {
-  id: string;
-  title: string;
-  lastMessage: string;
-  timestamp: Date;
-  messages: Message[];
-}
-
-const DUMMY_CONVERSATIONS: Conversation[] = [
-  {
-    id: "conv-1",
-    title: "Enterprise Security Policy",
-    lastMessage: "The complete onboarding timeline typically spans 90 days...",
-    timestamp: new Date(Date.now() - 1180000),
-    messages: [
-      {
-        id: "1",
-        type: "user",
-        content: "What are the key features of our enterprise security policy?",
-        timestamp: new Date(Date.now() - 3600000),
-      },
-      {
-        id: "2",
-        type: "assistant",
-        content: "Based on the enterprise security policy documents, the key features include:\n\n1. Multi-factor authentication (MFA) requirement for all user accounts\n2. Data encryption at rest and in transit using AES-256\n3. Regular security audits conducted quarterly\n4. Role-based access control (RBAC) implementation\n5. Automated threat detection and response systems\n6. Employee security training programs\n\nThese policies ensure comprehensive protection of company assets and customer data.",
-        timestamp: new Date(Date.now() - 3580000),
-        chunks: [
-          { filename: "security-policy-2024.pdf", similarity: 0.92 },
-          { filename: "rbac-guidelines.md", similarity: 0.87 },
-          { filename: "encryption-standards.pdf", similarity: 0.85 },
-        ],
-      },
-      {
-        id: "3",
-        type: "user",
-        content: "How often are security audits performed?",
-        timestamp: new Date(Date.now() - 2400000),
-      },
-      {
-        id: "4",
-        type: "assistant",
-        content: "According to the security policy documentation, security audits are performed quarterly (every 3 months). Additionally:\n\n- Internal security reviews are conducted monthly\n- External penetration testing is performed bi-annually\n- Compliance audits for regulatory requirements (SOC 2, ISO 27001) are done annually\n- Continuous automated security scanning runs 24/7\n\nThis multi-layered approach ensures ongoing security posture assessment.",
-        timestamp: new Date(Date.now() - 2380000),
-        chunks: [
-          { filename: "security-policy-2024.pdf", similarity: 0.94 },
-          { filename: "audit-schedule.md", similarity: 0.89 },
-        ],
-      },
-      {
-        id: "5",
-        type: "user",
-        content: "What is the process for onboarding new employees?",
-        timestamp: new Date(Date.now() - 1200000),
-      },
-      {
-        id: "6",
-        type: "assistant",
-        content: "The employee onboarding process consists of several stages:\n\n**Pre-boarding (Before Day 1):**\n- IT equipment setup and provisioning\n- Account creation and access credentials\n- Background check completion\n- Paperwork and documentation submission\n\n**Day 1 Orientation:**\n- Welcome session with HR\n- Company culture and values presentation\n- Security awareness training\n- Badge and access card issuance\n\n**First Week:**\n- Department-specific training\n- Mentor assignment\n- Tool and system training\n- Introduction to team members\n\n**First Month:**\n- Regular check-ins with manager\n- Goal setting and expectations alignment\n- Continued learning and development\n\nThe complete onboarding timeline typically spans 90 days for full integration.",
-        timestamp: new Date(Date.now() - 1180000),
-        chunks: [
-          { filename: "hr-onboarding-guide.pdf", similarity: 0.91 },
-          { filename: "employee-handbook.pdf", similarity: 0.88 },
-          { filename: "training-materials.md", similarity: 0.82 },
-        ],
-      },
-    ],
-  },
-  {
-    id: "conv-2",
-    title: "Product Roadmap Q1 2025",
-    lastMessage: "The roadmap prioritizes AI-powered features and mobile optimization.",
-    timestamp: new Date(Date.now() - 7200000),
-    messages: [
-      {
-        id: "7",
-        type: "user",
-        content: "What are the main priorities in our Q1 2025 product roadmap?",
-        timestamp: new Date(Date.now() - 8400000),
-      },
-      {
-        id: "8",
-        type: "assistant",
-        content: "The Q1 2025 product roadmap focuses on three main priorities:\n\n**1. AI-Powered Features (40% of resources)**\n- Advanced natural language search\n- Intelligent document categorization\n- Automated workflow recommendations\n- Predictive analytics dashboard\n\n**2. Mobile Optimization (30% of resources)**\n- Native iOS and Android apps\n- Responsive design improvements\n- Offline mode functionality\n- Push notification system\n\n**3. Enterprise Integration (30% of resources)**\n- SSO with major providers (Okta, Azure AD)\n- API rate limiting and monitoring\n- Advanced audit logging\n- Custom branding options\n\nTarget launch: End of Q1 with phased rollout.",
-        timestamp: new Date(Date.now() - 8380000),
-        chunks: [
-          { filename: "product-roadmap-2025.pdf", similarity: 0.95 },
-          { filename: "engineering-priorities.md", similarity: 0.88 },
-        ],
-      },
-      {
-        id: "9",
-        type: "user",
-        content: "When will the mobile apps be available?",
-        timestamp: new Date(Date.now() - 7300000),
-      },
-      {
-        id: "10",
-        type: "assistant",
-        content: "The mobile app timeline is as follows:\n\n**Beta Release:** Mid-February 2025\n- Limited to internal team members\n- iOS and Android versions\n- Core features only\n\n**Public Beta:** Early March 2025\n- Available to select customers\n- Expanded feature set\n- Feedback collection period\n\n**General Availability:** Late March 2025\n- Full public release\n- Complete feature parity with web app\n- App Store and Google Play\n\nThe roadmap prioritizes AI-powered features and mobile optimization.",
-        timestamp: new Date(Date.now() - 7200000),
-        chunks: [
-          { filename: "mobile-development-plan.pdf", similarity: 0.93 },
-          { filename: "release-schedule.md", similarity: 0.86 },
-        ],
-      },
-    ],
-  },
-  {
-    id: "conv-3",
-    title: "Data Privacy & GDPR Compliance",
-    lastMessage: "We maintain full GDPR compliance through automated data handling...",
-    timestamp: new Date(Date.now() - 86400000),
-    messages: [
-      {
-        id: "11",
-        type: "user",
-        content: "How do we ensure GDPR compliance for customer data?",
-        timestamp: new Date(Date.now() - 90000000),
-      },
-      {
-        id: "12",
-        type: "assistant",
-        content: "Our GDPR compliance strategy includes multiple layers:\n\n**Data Protection Measures:**\n- End-to-end encryption for all personal data\n- Anonymization of analytics data\n- Strict access controls with audit trails\n- Regular security assessments\n\n**User Rights Implementation:**\n- Right to access: Self-service data export\n- Right to erasure: Automated deletion within 30 days\n- Right to portability: JSON/CSV export formats\n- Right to rectification: User profile editing\n\n**Organizational Practices:**\n- Data Protection Officer (DPO) appointment\n- Privacy Impact Assessments (PIAs) for new features\n- Third-party vendor compliance verification\n- Annual GDPR training for all employees\n\nWe maintain full GDPR compliance through automated data handling and regular audits.",
-        timestamp: new Date(Date.now() - 86400000),
-        chunks: [
-          { filename: "gdpr-compliance-guide.pdf", similarity: 0.96 },
-          { filename: "data-protection-policy.md", similarity: 0.91 },
-          { filename: "privacy-procedures.pdf", similarity: 0.84 },
-        ],
-      },
-    ],
-  },
-  {
-    id: "conv-4",
-    title: "Customer Support Best Practices",
-    lastMessage: "Our average response time target is under 2 hours...",
-    timestamp: new Date(Date.now() - 172800000),
-    messages: [
-      {
-        id: "13",
-        type: "user",
-        content: "What are our customer support response time targets?",
-        timestamp: new Date(Date.now() - 176400000),
-      },
-      {
-        id: "14",
-        type: "assistant",
-        content: "Our customer support response time targets are:\n\n**Priority Tiers:**\n- Critical (P0): 30 minutes - System down, data loss\n- High (P1): 2 hours - Major feature broken, multiple users affected\n- Medium (P2): 8 hours - Minor feature issue, workaround available\n- Low (P3): 24 hours - Questions, feature requests, documentation\n\n**Channel-Specific SLAs:**\n- Live Chat: 5 minutes average response\n- Email: 4 hours first response\n- Phone: Immediate pickup during business hours\n- In-app messaging: 1 hour during business hours\n\n**Performance Metrics:**\n- Current average response: 1.8 hours\n- Customer satisfaction: 94%\n- First contact resolution: 78%\n- Escalation rate: 12%\n\nOur average response time target is under 2 hours across all priority levels.",
-        timestamp: new Date(Date.now() - 172800000),
-        chunks: [
-          { filename: "support-sla.pdf", similarity: 0.94 },
-          { filename: "customer-service-guidelines.md", similarity: 0.89 },
-        ],
-      },
-    ],
-  },
-];
 
 export default function Conversation() {
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState<string>("");
   const [selectedConversation, setSelectedConversation] = useState<[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -227,6 +62,10 @@ export default function Conversation() {
     });
   }
 
+  const refreshSelectedConversation = (conversationId) => {
+    chooseConversation(conversationId);
+  }
+
   useEffect(() => {
     scrollToBottom();
   }, [selectedConversation]);
@@ -234,6 +73,19 @@ export default function Conversation() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || !selectedConversation) return;
+
+    // optimistic UI
+    const newUserMessage = {
+      id: `temp-${Date.now()}`,
+      query: inputValue,
+      response: "...",
+      created_at: new Date().toISOString()
+    }
+
+    // show new query immediately
+    setSelectedConversation(prev => [...prev, newUserMessage]);
+    setIsTyping(true);
+    setInputValue("");
 
     const params = new URLSearchParams({
         query: inputValue,
@@ -248,68 +100,20 @@ export default function Conversation() {
         params.append("document_ids", id);
       });
       
-      const res = await apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/query?${params.toString()}`);
-      const response = await res.json();
+      try{
+        const res = await apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/query?${params.toString()}`);
+        const response = await res.json();
 
-    // const userMessage: Message = {
-    //   id: String(Date.now()),
-    //   type: "user",
-    //   content: inputValue.trim(),
-    //   timestamp: new Date(),
-    // };
-
-    // setConversations((prev) =>
-    //   prev.map((conv) =>
-    //     conv.id === selectedConversationId
-    //       ? { 
-    //           ...conv, 
-    //           messages: [...conv.messages, userMessage],
-    //           lastMessage: userMessage.content,
-    //           timestamp: userMessage.timestamp,
-    //         }
-    //       : conv
-    //   )
-    // );
-    // setInputValue("");
-    // setIsTyping(true);
-
-    // setTimeout(() => {
-    //   const assistantMessage: Message = {
-    //     id: String(Date.now() + 1),
-    //     type: "assistant",
-    //     content: "This is a demo conversation page with dummy data. In a real implementation, this response would come from the RAG system based on your query and the relevant document chunks retrieved from the vector database.",
-    //     timestamp: new Date(),
-    //     chunks: [
-    //       { filename: "sample-document.pdf", similarity: 0.85 },
-    //       { filename: "example-guide.md", similarity: 0.78 },
-    //     ],
-    //   };
-    //   setConversations((prev) =>
-    //     prev.map((conv) =>
-    //       conv.id === selectedConversationId
-    //         ? { 
-    //             ...conv, 
-    //             messages: [...conv.messages, assistantMessage],
-    //             lastMessage: assistantMessage.content,
-    //             timestamp: assistantMessage.timestamp,
-    //           }
-    //         : conv
-    //     )
-    //   );
-    //   setIsTyping(false);
-    // }, 1500);
+        refreshSelectedConversation(selectedConversation[0].conversation_id);
+      } catch (err) {
+        console.error("Error submitting query: ", err);
+      } finally {
+        setIsTyping(false);
+        scrollToBottom();
+      }
   };
 
   const handleNewConversation = () => {
-    // const newConv: Conversation = {
-    //   id: `conv-${Date.now()}`,
-    //   title: "New Conversation",
-    //   lastMessage: "Start a new conversation...",
-    //   timestamp: new Date(),
-    //   messages: [],
-    // };
-    // setConversations([newConv, ...conversations]);
-    // setSelectedConversationId(newConv.id);
   };
 
   const handleDeleteConversation = (id: string) => {
@@ -493,83 +297,6 @@ export default function Conversation() {
                   </div>
                 ) : (
                   selectedConversation.map((turn) => (
-                    // <div
-                    //   key={message.id}
-                    //   className={`flex gap-4 ${
-                    //     message.type === "user" ? "justify-end" : "justify-start"
-                    //   }`}
-                    //   data-testid={`message-${message.id}`}
-                    // >
-                    //   {message.type === "assistant" && (
-                    //     <div className="flex-shrink-0">
-                    //       <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                    //         <Bot className="w-4 h-4 text-primary-foreground" />
-                    //       </div>
-                    //     </div>
-                    //   )}
-
-                    //   <div
-                    //     className={`flex-1 max-w-2xl ${
-                    //       message.type === "user" ? "flex justify-end" : ""
-                    //     }`}
-                    //   >
-                    //     <Card
-                    //       className={`p-4 ${
-                    //         message.type === "user"
-                    //           ? "bg-primary text-primary-foreground"
-                    //           : ""
-                    //       }`}
-                    //     >
-                    //       <div className="space-y-2">
-                    //         <p
-                    //           className="text-sm leading-relaxed whitespace-pre-wrap"
-                    //           data-testid={`text-message-content-${message.id}`}
-                    //         >
-                    //           {message.content}
-                    //         </p>
-
-                    //         {message.chunks && message.chunks.length > 0 && (
-                    //           <div className="mt-3 pt-3 border-t space-y-2">
-                    //             <p className="text-xs font-medium text-muted-foreground">
-                    //               Retrieved Chunks:
-                    //             </p>
-                    //             <div className="flex flex-wrap gap-2">
-                    //               {message.chunks.map((chunk, idx) => (
-                    //                 <Badge
-                    //                   key={idx}
-                    //                   variant="secondary"
-                    //                   className="text-xs"
-                    //                   data-testid={`badge-chunk-${message.id}-${idx}`}
-                    //                 >
-                    //                   {chunk.filename} ({(chunk.similarity * 100).toFixed(0)}%)
-                    //                 </Badge>
-                    //               ))}
-                    //             </div>
-                    //           </div>
-                    //         )}
-
-                    //         <p
-                    //           className={`text-xs ${
-                    //             message.type === "user"
-                    //               ? "text-primary-foreground/70"
-                    //               : "text-muted-foreground"
-                    //           } mt-2`}
-                    //           data-testid={`text-timestamp-${message.id}`}
-                    //         >
-                    //           {formatTime(message.timestamp)}
-                    //         </p>
-                    //       </div>
-                    //     </Card>
-                    //   </div>
-
-                    //   {message.type === "user" && (
-                    //     <div className="flex-shrink-0">
-                    //       <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                    //         <User className="w-4 h-4" />
-                    //       </div>
-                    //     </div>
-                    //   )}
-                    // </div>
                     <>
                     {/* user query */}
                     <div
@@ -603,19 +330,18 @@ export default function Conversation() {
                         </div>
                     </div>
                     {/* end of user query */}
-
-                    <div
-                        key={turn.id}
-                        className='flex gap-4 "justify-start"'
-                        data-testid={`message-${turn.id}`}
-                    >
-                        <div className="flex-shrink-0">
-                            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                            <Bot className="w-4 h-4 text-primary-foreground" />
-                            </div>
-                        </div>
-
-                        <div className="flex-1 max-w-2xl">
+                        {turn.response != "..." && (
+                          <div
+                              key={turn.id}
+                              className='flex gap-4 "justify-start"'
+                              data-testid={`message-${turn.id}`}
+                          >
+                          <div className="flex-shrink-0">
+                              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                              <Bot className="w-4 h-4 text-primary-foreground" />
+                              </div>
+                          </div>
+                          <div className="flex-1 max-w-2xl">
                             <Card className="p-4">
                                 <div className="space-y-2">
                                     <p className="text-sm leading-relaxed whitespace-pre-wrap" 
@@ -643,7 +369,6 @@ export default function Conversation() {
                                         </div>
                                         </div>
                                     )}
-
                                     <p
                                         className={`text-xs "text-muted-foreground" mt-2`}
                                         data-testid={`text-timestamp-${turn.id}`}
@@ -652,8 +377,9 @@ export default function Conversation() {
                                     </p>
                                 </div>
                             </Card>
-                        </div>
-                    </div>
+                          </div>
+                          </div>
+                        )}
                     </>
                   ))
                 )}

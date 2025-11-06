@@ -24,9 +24,11 @@ async def create_query_session(session: AsyncSession,
         created_at=time.strftime("%Y-%m-%d %H:%M:%S"),
         response_time=payload.response_time,
         user_id=payload.user_id,
-        conversation_id=payload.conversation_id,
         document_ids=payload.document_ids
     )
+
+    if payload.conversation_id:
+        query_session.conversation_id = payload.conversation_id
 
     session.add(query_session)
     await session.commit()

@@ -49,17 +49,47 @@ export default function Conversation() {
   }, []);
 
   // choose conversation
-  const chooseConversation = (conversationId) => {
-    console.log(`convesation id: ${conversationId}`);
-    setSelectedConversation(null)
-    const conversation = apiRequest("GET",
-      `${import.meta.env.VITE_API_BASE_URL}/api/query/query-session/conversation/${conversationId}`)
-    .then((res) => res.json()).then((data) => {
-        console.log(data);
-        setSelectedConversation(data);
-    }).catch((error) => {
-        console.error("Error fetching conversation:", error);
-    });
+  const chooseConversation = async (conversationId) => {
+    setSelectedConversation([]);
+    setSelectedConversationId("");
+    
+    if (conversationId.startsWith("conv-")) {
+      setSelectedConversationId(conversationId);
+      setSelectedConversation([
+        {
+          conversation_id: conversationId,
+          query: "",
+          response: "",
+          top_k: null,
+          chunk_size: null,
+          created_at: new Date().toISOString(),
+          document_ids: []
+        }
+      ]);
+      return;
+    }
+
+    try {
+      const res = await apiRequest(
+        "GET",
+        `${import.meta.env.VITE_API_BASE_URL}/api/query/query-session/conversation/${conversationId}`
+      );
+      const data = await res.json();
+      setSelectedConversation(data);
+      setSelectedConversationId(conversationId);
+    } catch (error) {
+      console.error("Error fetching conversation:", error);
+    }
+
+    // setSelectedConversation(null)
+    // const conversation = apiRequest("GET",
+    //   `${import.meta.env.VITE_API_BASE_URL}/api/query/query-session/conversation/${conversationId}`)
+    // .then((res) => res.json()).then((data) => {
+    //     console.log(data);
+    //     setSelectedConversation(data);
+    // }).catch((error) => {
+    //     console.error("Error fetching conversation:", error);
+    // });
   }
 
   const refreshSelectedConversation = (conversationId) => {
@@ -114,6 +144,30 @@ export default function Conversation() {
   };
 
   const handleNewConversation = () => {
+    const newConversationId = `conv-${Date.now()}`;
+
+    setSelectedConversation([]);
+    setSelectedConversationId("");
+
+    const newConversationMessages = [{
+      conversation_id: newConversationId,
+      // title: "New Converstation",
+      query: "",
+      response: "",
+      created_at: new Date().toISOString()
+    }]
+
+    // add new conversation history to list on sidebar
+    const newConversationPreview = {
+      conversation_id: newConversationId,
+      title: "New Conversation",
+      created_at: new Date().toISOString(),
+      query: ""
+    }
+
+    setConversations((prev) => [newConversationPreview, ...prev]);
+    setSelectedConversationId(newConversationId);
+    setSelectedConversation(newConversationMessages);
   };
 
   const handleDeleteConversation = (id: string) => {
@@ -285,7 +339,7 @@ export default function Conversation() {
 
             <ScrollArea className="flex-1 px-6 overlow-y-auto" data-testid="scroll-area-messages">
               <div className="py-6 space-y-6 max-w-4xl mx-auto">
-                {selectedConversation.length === 0 ? (
+                {selectedConversation.length === 0 || selectedConversation[0].conversation_id.startsWith("conv-") ? (
                   <div className="text-center py-12">
                     <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
                       <MessageSquare className="w-8 h-8 text-muted-foreground" />

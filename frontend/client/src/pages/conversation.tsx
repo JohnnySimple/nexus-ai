@@ -117,13 +117,19 @@ export default function Conversation() {
     setIsTyping(true);
     setInputValue("");
 
+    let conversationIdToPass = selectedConversation[0].conversation_id;
+    if (conversationIdToPass.startsWith("conv-")) {
+      // start of new conversation
+      conversationIdToPass = "";
+    }
+
     const params = new URLSearchParams({
         query: inputValue,
         // top_k: data.topK,
         with_llm_response: true,
         user_id: JSON.parse(localStorage.getItem("user")).id,
         // model: data.model,
-        conversation_id: selectedConversation[0].conversation_id
+        conversation_id: conversationIdToPass
       });
 
       selectedConversation[0].document_ids?.forEach(id => {

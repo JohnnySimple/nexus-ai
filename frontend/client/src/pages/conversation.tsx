@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { Checkbox } from "@/components/ui/checkbox";
 
 
 export default function Conversation() {
@@ -28,12 +29,23 @@ export default function Conversation() {
   const [isTyping, setIsTyping] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+   // get documents
+  useEffect(() => {
+    const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents`)
+      .then((res) => res.json()).then((data) => {
+        setDocuments(data);
+      }).catch((error) => {
+        console.error("Error fetching documents:", error);
+      });
+  }, []);
 
   // get conversations
   useEffect(() => {
@@ -313,7 +325,7 @@ export default function Conversation() {
                           className="text-xs text-muted-foreground line-clamp-2"
                           data-testid={`text-conversation-preview-${conv.id}`}
                         >
-                          {conv.query}
+                          {conv.query.length > 50 ? conv.query.slice(0,50) + " ..." : conv.query}
                         </p>
                       </div>
                     </div>
@@ -354,6 +366,35 @@ export default function Conversation() {
                     <p className="text-sm text-muted-foreground">
                       Ask a question about your documents to get started
                     </p>
+                    {/* <div>
+                      {documents.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No documents available</p>
+                            ) : (
+                              documents.map((doc) => (
+                                <div key={doc.id} className="flex items-center space-x-2">
+                                  <Checkbox  
+                                    id={`doc-${doc.id}`}
+                                    // checked={field.value?.includes(doc.id)}
+                                    onCheckedChange={(checked) => {
+                                      const current = field.value || [];
+                                      if (checked) {
+                                        field.onChange([...current, doc.id]);
+                                      } else {
+                                        field.onChange(current.filter((id) => id !== doc.id));
+                                      }
+                                    }}
+                                    data-testid={`checkbox-doc-${doc.id}`}
+                                  />
+                                  <label
+                                    htmlFor={`doc-${doc.id}`}
+                                    className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                  >
+                                    {doc.filename}
+                                  </label>
+                                </div>
+                              ))
+                            )}
+                    </div> */}
                   </div>
                 ) : (
                   selectedConversation.map((turn) => (

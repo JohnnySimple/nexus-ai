@@ -152,7 +152,8 @@ export default function Conversation() {
         const res = await apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/query?${params.toString()}`);
         const response = await res.json();
 
-        refreshSelectedConversation(selectedConversation[0].conversation_id);
+        // refreshSelectedConversation(selectedConversation[0].conversation_id);
+        refreshSelectedConversation(response.query_session.conversation_id);
       } catch (err) {
         console.error("Error submitting query: ", err);
       } finally {

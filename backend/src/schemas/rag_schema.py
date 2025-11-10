@@ -44,6 +44,7 @@ class DocumentQueryResponse(BaseModel):
     final_prompt: Optional[str] = None
     llm_response: Optional[str] = None
     time: Optional[float | str] = None
+    query_session: Optional[dict] = None
 
 class ErrorResponse(BaseModel):
     message: str

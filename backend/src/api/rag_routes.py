@@ -253,7 +253,8 @@ async def query_documents(
         conversation_id=conversation_id
     )
 
-    await query_service.create_query_session(query_session_payload)
+    query_session = await query_service.create_query_session(query_session_payload)
+    output["query_session"] = query_session.model_dump()
 
     return output
 

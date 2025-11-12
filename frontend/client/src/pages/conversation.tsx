@@ -53,7 +53,7 @@ export default function Conversation() {
   }, []);
 
   
-  const fetchConversations = () => {
+  const fetchConversations = async () => {
     const user_id = JSON.parse(localStorage.getItem("user")).id;
     const conversations = apiRequest("GET",
       `${import.meta.env.VITE_API_BASE_URL}/api/query/query-session/user/${user_id}?distinct_conversation=true`)
@@ -109,8 +109,13 @@ export default function Conversation() {
     // });
   }
 
-  const refreshSelectedConversation = (conversationId) => {
-    chooseConversation(conversationId);
+  const refreshSelectedConversation = async (conversationId, isNew=false) => {
+    if(isNew) {
+      await fetchConversations();
+      chooseConversation(conversationId);
+    } else {
+      chooseConversation(conversationId);
+    }
   }
 
   useEffect(() => {
@@ -135,9 +140,11 @@ export default function Conversation() {
     setInputValue("");
 
     let conversationIdToPass = selectedConversation[0].conversation_id;
+    let isNew = false;
     if (conversationIdToPass.startsWith("conv-")) {
       // start of new conversation
       conversationIdToPass = "";
+      isNew = true;
     }
 
     const params = new URLSearchParams({
@@ -158,7 +165,7 @@ export default function Conversation() {
         const response = await res.json();
 
         // refreshSelectedConversation(selectedConversation[0].conversation_id);
-        refreshSelectedConversation(response.query_session.conversation_id);
+        refreshSelectedConversation(response.query_session.conversation_id, isNew);
       } catch (err) {
         console.error("Error submitting query: ", err);
       } finally {

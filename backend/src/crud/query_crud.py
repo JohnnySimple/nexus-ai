@@ -48,10 +48,32 @@ async def get_query_sessions_by_user_id(session: AsyncSession, user_id: str,
                                         distinct_conversation: bool = False) -> QuerySession | None:
     """Retrieve query sessions by user id"""
     if distinct_conversation:
-        results = await session.execute(select(QuerySession).distinct(QuerySession.conversation_id)
-                                        .where(QuerySession.user_id == user_id))
+        # results = await session.execute(select(QuerySession).distinct(QuerySession.conversation_id)
+        #                                 .where(QuerySession.user_id == user_id)
+        #                                 .order_by(QuerySession.conversation_id, QuerySession.created_at.desc()))
+        row_number = func.row_number().over(
+            partition_by=QuerySession.conversation_id,
+            order_by=QuerySession.created_at.asc()
+        ).label("rn")
+
+        subq = (
+            select(QuerySession.id.label("id"), row_number)
+            .where(QuerySession.user_id == user_id)
+            .subquery()
+        )
+
+        stmt = (
+            select(QuerySession)
+            .join(subq, QuerySession.id == subq.c.id)
+            .where(subq.c.rn == 1) # keep only first per conversation
+            .order_by(QuerySession.created_at.desc())
+        )
+
+        results = await session.execute(stmt)
     else:
-        results = await session.execute(select(QuerySession).where(QuerySession.user_id == user_id))
+        results = await session.execute(select(QuerySession)
+                                        .where(QuerySession.user_id == user_id)
+                                        .order_by(QuerySession.created_at.desc()))
     query_sessions = results.scalars().all()
     return query_sessions
 

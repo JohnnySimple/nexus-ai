@@ -94,7 +94,7 @@ async def get_query_sessions_by_conversation_id(conversation_id: str):
         logger.error(f"Failed to get query sessions: {e}")
         raise HTTPException(status_code=500, detail="Failed to get query session.")
 
-@router.delete("/query-session/conversation/{id}")
+@router.delete("/query-session/conversation/{conversation_id}")
 async def delete_conversation(conversation_id: str):
     """Delete conversation by conversation id."""
     try:

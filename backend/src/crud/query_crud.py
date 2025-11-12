@@ -1,7 +1,8 @@
 """Query crud operations"""
 import time
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, func
+from sqlmodel import select, func, delete
 from sqlalchemy.orm import selectinload
 from src.db.models import QuerySession
 from src.schemas.query_schema import QuerySessionCreateRequest
@@ -68,3 +69,15 @@ async def get_total_query_sessions_by_user_id(session: AsyncSession, user_id: st
     """Retrieve total query sessions by user id"""
     results = await session.execute(select(func.count()).select_from(QuerySession).where(QuerySession.user_id == user_id))
     return results.scalar_one()
+
+async def delete_conversation_by_conversation_id(session: AsyncSession, conversation_id: str) -> bool:
+    """Delete conversation by conversation id"""
+    conversations = await get_query_sessions_by_conversation_id(session, conversation_id)
+
+    if not conversations:
+        raise HTTPException(status_code=404, detail="No conversations found.")
+    
+    await session.execute(delete(QuerySession).where(QuerySession.conversation_id == conversation_id))
+    await session.commit()
+
+    return True

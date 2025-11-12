@@ -3,7 +3,7 @@ from src.config import settings
 from src.db.database import get_session
 
 from src.crud.query_crud import create_query_session, get_query_session_by_id, get_query_sessions_by_user_id,\
-    get_query_sessions_by_conversation_id, get_total_query_sessions_by_user_id
+    get_query_sessions_by_conversation_id, get_total_query_sessions_by_user_id, delete_conversation_by_conversation_id
 
 
 class QueryService:
@@ -56,3 +56,10 @@ class QueryService:
                    raise HTTPException(status_code=404, detail="No query sessions found.")
               
               return query_sessions
+         
+    async def delete_conversation_by_conversation_id(self, conversation_id):
+         """Delete conversation by conversation id"""
+         async for session in get_session():
+              deleted = await delete_conversation_by_conversation_id(session, conversation_id)
+
+              return deleted

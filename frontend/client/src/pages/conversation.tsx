@@ -49,6 +49,11 @@ export default function Conversation() {
 
   // get conversations
   useEffect(() => {
+    fetchConversations();
+  }, []);
+
+  
+  const fetchConversations = () => {
     const user_id = JSON.parse(localStorage.getItem("user")).id;
     const conversations = apiRequest("GET",
       `${import.meta.env.VITE_API_BASE_URL}/api/query/query-session/user/${user_id}?distinct_conversation=true`)
@@ -58,7 +63,7 @@ export default function Conversation() {
     }).catch((error) => {
         console.error("Error fetching conversation:", error);
     });
-  }, []);
+  }
 
   // choose conversation
   const chooseConversation = async (conversationId) => {
@@ -189,21 +194,32 @@ export default function Conversation() {
     setSelectedConversation(newConversationMessages);
   };
 
-  const handleDeleteConversation = (id: string) => {
-    const deletedConv = conversations.find((c) => c.id === id);
-    setConversations((prev) => prev.filter((conv) => conv.id !== id));
+  const handleDeleteConversation = async (conversationId: string) => {
+    // const deletedConv = conversations.find((c) => c.id === id);
+    // setConversations((prev) => prev.filter((conv) => conv.id !== id));
     
-    if (selectedConversationId === id) {
-      const remaining = conversations.filter((conv) => conv.id !== id);
-      if (remaining.length > 0) {
-        setSelectedConversationId(remaining[0].id);
-      }
+    // if (selectedConversationId === id) {
+    //   const remaining = conversations.filter((conv) => conv.id !== id);
+    //   if (remaining.length > 0) {
+    //     setSelectedConversationId(remaining[0].id);
+    //   }
+    // }
+
+    try {
+      const res = await apiRequest(
+        "DELETE",
+        `${import.meta.env.VITE_API_BASE_URL}/api/query/query-session/conversation/${conversationId}`
+      );
+      const data = await res.json();
+      fetchConversations();
+    } catch (error) {
+      console.error("Error deleting conversation:", error);
     }
     
     setDeleteConfirmId(null);
     toast({
       title: "Conversation deleted",
-      description: `"${deletedConv?.title}" has been removed.`,
+      // description: `"${deletedConv?.title}" has been removed.`,
     });
   };
 
@@ -314,7 +330,7 @@ export default function Conversation() {
                               className="h-6 w-6 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setDeleteConfirmId(conv.id);
+                                setDeleteConfirmId(conv.conversation_id);
                               }}
                               data-testid={`button-delete-${conv.id}`}
                             >

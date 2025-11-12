@@ -33,8 +33,8 @@ export default function Conversation() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollToBottom = (smooth = false) => {
+    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
   };
 
    // get documents
@@ -114,7 +114,7 @@ export default function Conversation() {
   }
 
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottom(false);
   }, [selectedConversation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -204,6 +204,11 @@ export default function Conversation() {
     //     setSelectedConversationId(remaining[0].id);
     //   }
     // }
+
+    if (conversationId.startsWith("conv-")) {
+      fetchConversations();
+      return;
+    }
 
     try {
       const res = await apiRequest(

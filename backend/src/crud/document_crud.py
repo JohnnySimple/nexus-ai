@@ -89,6 +89,12 @@ async def get_documents_by_ids(session: AsyncSession, document_ids: List[str]) -
     documents = result.scalars().all()
     return documents
 
+async def get_document_ids_by_group_ids(session: AsyncSession, group_ids: List[str]) -> List[Document]:
+    """Retrieve documents by group ids"""
+    result = await session.execute(select(Document.id).where(Document.document_group_id.in_(group_ids)))
+    document_ids = result.scalars().all()
+    return document_ids
+
 async def get_all_documents(session: AsyncSession) -> List[Document]:
     """Retrieve all documents from the database"""
     result = await session.execute(select(Document).options(

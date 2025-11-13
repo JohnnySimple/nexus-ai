@@ -206,6 +206,7 @@ async def query_documents(
     query: str = Query(...),
     top_k: int = Query(5),
     document_ids: List[str] = Query([]),
+    document_group_ids: List[str] = Query([]),
     with_llm_response: bool = Query(False),
     stream: bool = Query(False),
     model: Optional[str] = "",
@@ -217,6 +218,7 @@ async def query_documents(
         query=query,
         top_k=top_k,
         document_ids=document_ids,
+        document_group_ids=document_group_ids,
         with_llm_response=with_llm_response,
         stream=stream
     )
@@ -228,7 +230,8 @@ async def query_documents(
     results = await rag_service.query_documents(
         query=request.query,
         top_k=request.top_k,
-        document_ids=request.document_ids
+        document_ids=request.document_ids,
+        document_group_ids=request.document_group_ids
     )
 
     # retrieve conversation history
@@ -236,8 +239,8 @@ async def query_documents(
     if conversation_id:
         history = await query_service.get_query_sessions_by_conversation_id(conversation_id)
 
-    context = rag_helpers.build_context(results, request)
-    output = await rag_helpers.get_query_output(request, context, results, history)
+    context = rag_helpers.build_context(results["results"], request)
+    output = await rag_helpers.get_query_output(request, context, results["results"], history)
 
     # save query session
     relevant_chunks = [chunk for doc in output["results"] for chunk in doc["relevant_chunks"]]
@@ -249,7 +252,7 @@ async def query_documents(
         top_k=top_k,
         retrieved_chunks=str(relevant_chunks),
         user_id=user_id,
-        document_ids=document_ids,
+        document_ids=results["updated_document_ids"],
         conversation_id=conversation_id
     )
 

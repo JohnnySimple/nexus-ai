@@ -32,6 +32,7 @@ class DocumentQueryRequest(BaseModel):
     top_k: int = Field(default=5, description="Number of results to return")
     filter_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Metadata filters")
     document_ids: List[str]
+    document_group_ids: Optional[List[str]] = Field(default=None)
 
 class QueryResults(BaseModel):
     document: Dict

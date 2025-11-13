@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Checkbox } from "@/components/ui/checkbox";
+import DocumentGroup from "@/components/document-group";
 
 
 export default function Conversation() {
@@ -395,35 +396,9 @@ export default function Conversation() {
                     <p className="text-sm text-muted-foreground">
                       Ask a question about your documents to get started
                     </p>
-                    {/* <div>
-                      {documents.length === 0 ? (
-                              <p className="text-sm text-muted-foreground">No documents available</p>
-                            ) : (
-                              documents.map((doc) => (
-                                <div key={doc.id} className="flex items-center space-x-2">
-                                  <Checkbox  
-                                    id={`doc-${doc.id}`}
-                                    // checked={field.value?.includes(doc.id)}
-                                    onCheckedChange={(checked) => {
-                                      const current = field.value || [];
-                                      if (checked) {
-                                        field.onChange([...current, doc.id]);
-                                      } else {
-                                        field.onChange(current.filter((id) => id !== doc.id));
-                                      }
-                                    }}
-                                    data-testid={`checkbox-doc-${doc.id}`}
-                                  />
-                                  <label
-                                    htmlFor={`doc-${doc.id}`}
-                                    className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                  >
-                                    {doc.filename}
-                                  </label>
-                                </div>
-                              ))
-                            )}
-                    </div> */}
+                    <div>
+                      <DocumentGroup />
+                    </div>
                   </div>
                 ) : (
                   selectedConversation.map((turn) => (

@@ -9,7 +9,7 @@ import { queryFormSchema, type QueryFormData } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
 
-export default function DocumentGroup() {
+export default function DocumentGroup({onDataChange}: {onDataChange?: (data) => void}) {
 
     const [groups, setGroups] = useState<[]>([]);
     const [documents, setDocuments] = useState<Document[]>([]);
@@ -49,6 +49,16 @@ export default function DocumentGroup() {
         });
     }, []);
 
+
+
+    // notify parent when form data changes
+    useEffect(() => {
+        const subscription = form.watch((value) => {
+            onDataChange?.(value);
+        });
+        return () => subscription.unsubscribe();
+    }, [form.watch, onDataChange]);
+
     return (
         <>
             <Form {...form}>
@@ -63,7 +73,7 @@ export default function DocumentGroup() {
                             Search Documents
                             </FormLabel>
                             <div className="border rounded-md p-3 space-y-2 max-h-[200px] overflow-y-auto" data-testid="documents-selection">
-                            <div className="flex items-center space-x-2">
+                            {/* <div className="flex items-center space-x-2">
                                 <Checkbox
                                 id="all-documents"
                                 checked={!field.value || field.value.length === 0}
@@ -80,7 +90,7 @@ export default function DocumentGroup() {
                                 >
                                 All Documents
                                 </label>
-                            </div>
+                            </div> */}
                             <Separator />
                             {documents.length === 0 ? (
                                 <p className="text-sm text-muted-foreground">No documents available</p>
@@ -125,7 +135,7 @@ export default function DocumentGroup() {
                         Search Groups
                         </FormLabel>
                         <div className="border rounded-md p-3 space-y-2 max-h-[200px] overflow-y-auto" data-testid="groups-selection">
-                        <div className="flex items-center space-x-2">
+                        {/* <div className="flex items-center space-x-2">
                             <Checkbox
                             id="all-groups"
                             checked={!field.value || field.value.length === 0}
@@ -142,7 +152,7 @@ export default function DocumentGroup() {
                             >
                             All Groups
                             </label>
-                        </div>
+                        </div> */}
                         <Separator />
                         {groups.length === 0 ? (
                             <p className="text-sm text-muted-foreground">No groups available</p>

@@ -31,6 +31,8 @@ export default function Conversation() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [documents, setDocuments] = useState<Document[]>([]);
+  const [queryDocumentsData, setQueryDocumentsData] = useState([]);
+  const [currentTitle, setCurrentTitle] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -95,19 +97,10 @@ export default function Conversation() {
       const data = await res.json();
       setSelectedConversation(data);
       setSelectedConversationId(conversationId);
+      setCurrentTitle(data[0].query.length > 50 ? data[0].query.slice(0,50) + " ..." : data[0].query);
     } catch (error) {
       console.error("Error fetching conversation:", error);
     }
-
-    // setSelectedConversation(null)
-    // const conversation = apiRequest("GET",
-    //   `${import.meta.env.VITE_API_BASE_URL}/api/query/query-session/conversation/${conversationId}`)
-    // .then((res) => res.json()).then((data) => {
-    //     console.log(data);
-    //     setSelectedConversation(data);
-    // }).catch((error) => {
-    //     console.error("Error fetching conversation:", error);
-    // });
   }
 
   const refreshSelectedConversation = async (conversationId, isNew=false) => {
@@ -141,10 +134,12 @@ export default function Conversation() {
     setInputValue("");
 
     let conversationIdToPass = selectedConversation[0].conversation_id;
+    let docIdsToPass = selectedConversation[0].document_ids;
     let isNew = false;
     if (conversationIdToPass.startsWith("conv-")) {
       // start of new conversation
       conversationIdToPass = "";
+      docIdsToPass = queryDocumentsData.documentIds;
       isNew = true;
     }
 
@@ -157,15 +152,18 @@ export default function Conversation() {
         conversation_id: conversationIdToPass
       });
 
-      selectedConversation[0].document_ids?.forEach(id => {
+      docIdsToPass?.forEach(id => {
         params.append("document_ids", id);
+      });
+
+      queryDocumentsData?.groupIds.forEach(id => {
+        params.append("document_group_ids", id)
       });
       
       try{
         const res = await apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/query?${params.toString()}`);
         const response = await res.json();
 
-        // refreshSelectedConversation(selectedConversation[0].conversation_id);
         refreshSelectedConversation(response.query_session.conversation_id, isNew);
       } catch (err) {
         console.error("Error submitting query: ", err);
@@ -203,15 +201,6 @@ export default function Conversation() {
   };
 
   const handleDeleteConversation = async (conversationId: string) => {
-    // const deletedConv = conversations.find((c) => c.id === id);
-    // setConversations((prev) => prev.filter((conv) => conv.id !== id));
-    
-    // if (selectedConversationId === id) {
-    //   const remaining = conversations.filter((conv) => conv.id !== id);
-    //   if (remaining.length > 0) {
-    //     setSelectedConversationId(remaining[0].id);
-    //   }
-    // }
 
     if (conversationId.startsWith("conv-")) {
       fetchConversations();
@@ -232,9 +221,12 @@ export default function Conversation() {
     setDeleteConfirmId(null);
     toast({
       title: "Conversation deleted",
-      // description: `"${deletedConv?.title}" has been removed.`,
     });
   };
+
+  const handleDocumentChange = (data) => {
+    setQueryDocumentsData(data);
+  }
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString("en-US", {
@@ -257,12 +249,8 @@ export default function Conversation() {
   };
 
   return (
-    // <div className="flex h-full gap-6" data-testid="page-conversation">
     <div className="flex h-screen overflow-hidden gap-6" data-testid="page-conversation">
       <div
-        // className={`flex flex-col gap-4 transition-all duration-300 ${
-        //   isSidebarCollapsed ? "w-16" : "w-80"
-        // }`}
         className={`flex flex-col gap-4 transition-all duration-300 overflow-y-auto ${
           isSidebarCollapsed ? "w-16" : "w-85"
         }`}
@@ -315,7 +303,6 @@ export default function Conversation() {
                         ? "bg-accent border-accent-border"
                         : ""
                     }`}
-                    // onClick={() => setSelectedConversationId(conv.conversation_id)}
                     onClick={() => chooseConversation(conv.conversation_id)}
                     data-testid={`conversation-item-${conv.id}`}
                   >
@@ -376,7 +363,7 @@ export default function Conversation() {
                 <div>
                   <h1 className="text-2xl font-semibold" data-testid="text-conversation-title">
                     {/* {selectedConversation.title} */}
-                    title
+                    {currentTitle}
                   </h1>
                   <p className="text-sm text-muted-foreground mt-1">
                     {selectedConversation.length} messages
@@ -396,8 +383,8 @@ export default function Conversation() {
                     <p className="text-sm text-muted-foreground">
                       Ask a question about your documents to get started
                     </p>
-                    <div>
-                      <DocumentGroup />
+                    <div className="pt-6">
+                      <DocumentGroup onDataChange={handleDocumentChange} />
                     </div>
                   </div>
                 ) : (
@@ -435,56 +422,56 @@ export default function Conversation() {
                         </div>
                     </div>
                     {/* end of user query */}
-                        {turn.response != "..." && (
-                          <div
-                              key={turn.id}
-                              className='flex gap-4 "justify-start"'
-                              data-testid={`message-${turn.id}`}
-                          >
-                          <div className="flex-shrink-0">
-                              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                              <Bot className="w-4 h-4 text-primary-foreground" />
-                              </div>
+                    {turn.response != "..." && (
+                      <div
+                          key={turn.id}
+                          className='flex gap-4 "justify-start"'
+                          data-testid={`message-${turn.id}`}
+                      >
+                      <div className="flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                          <Bot className="w-4 h-4 text-primary-foreground" />
                           </div>
-                          <div className="flex-1 max-w-2xl">
-                            <Card className="p-4">
-                                <div className="space-y-2">
-                                    <p className="text-sm leading-relaxed whitespace-pre-wrap" 
-                                        data-testid={`text-message-content-${turn.id}`}
-                                    >
-                                        {turn.response}
-                                    </p>
+                      </div>
+                      <div className="flex-1 max-w-2xl">
+                        <Card className="p-4">
+                            <div className="space-y-2">
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap" 
+                                    data-testid={`text-message-content-${turn.id}`}
+                                >
+                                    {turn.response}
+                                </p>
 
-                                    {turn.retrieved_chunks && turn.retrieved_chunks.length > 0 && (
-                                        <div className="mt-3 pt-3 border-t space-y-2">
-                                        <p className="text-xs font-medium text-muted-foreground">
-                                            Retrieved Chunks:
-                                        </p>
-                                        <div className="flex flex-wrap gap-2">
-                                            {turn.retrieved_chunks[0].map((chunk, idx) => (
-                                            <Badge
-                                                key={idx}
-                                                variant="secondary"
-                                                className="text-xs"
-                                                data-testid={`badge-chunk-${turn.id}-${idx}`}
-                                            >
-                                                {chunk.document_name} ({(chunk.similarity_score * 100).toFixed(0)}%)
-                                            </Badge>
-                                            ))}
-                                        </div>
-                                        </div>
-                                    )}
-                                    <p
-                                        className={`text-xs "text-muted-foreground" mt-2`}
-                                        data-testid={`text-timestamp-${turn.id}`}
-                                    >
-                                        {formatTime(new Date(turn.created_at))}
+                                {turn.retrieved_chunks && turn.retrieved_chunks.length > 0 && (
+                                    <div className="mt-3 pt-3 border-t space-y-2">
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        Retrieved Chunks:
                                     </p>
-                                </div>
-                            </Card>
-                          </div>
-                          </div>
-                        )}
+                                    <div className="flex flex-wrap gap-2">
+                                        {turn.retrieved_chunks[0].map((chunk, idx) => (
+                                        <Badge
+                                            key={idx}
+                                            variant="secondary"
+                                            className="text-xs"
+                                            data-testid={`badge-chunk-${turn.id}-${idx}`}
+                                        >
+                                            {chunk.document_name} ({(chunk.similarity_score * 100).toFixed(0)}%)
+                                        </Badge>
+                                        ))}
+                                    </div>
+                                    </div>
+                                )}
+                                <p
+                                    className={`text-xs "text-muted-foreground" mt-2`}
+                                    data-testid={`text-timestamp-${turn.id}`}
+                                >
+                                    {formatTime(new Date(turn.created_at))}
+                                </p>
+                            </div>
+                        </Card>
+                      </div>
+                      </div>
+                    )}
                     </>
                   ))
                 )}

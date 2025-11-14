@@ -47,6 +47,10 @@ class DocumentQueryResponse(BaseModel):
     time: Optional[float | str] = None
     query_session: Optional[dict] = None
 
+class DocumentQueryResponseCompared(BaseModel):
+    output: DocumentQueryResponse
+    db_output: dict
+
 class ErrorResponse(BaseModel):
     message: str
     status: Status

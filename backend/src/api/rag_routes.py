@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 import logging
 
 from src.schemas.rag_schema import DocumentIngestRequest, DocumentIngestResponse,\
-    Status, DocumentResponse, DocumentQueryRequest, DocumentQueryResponse, ErrorResponse
+    Status, DocumentResponse, DocumentQueryRequest, DocumentQueryResponse, DocumentQueryResponseCompared, ErrorResponse
 from src.schemas.chat_schema import ChatRequest
 
 from src.services.rag_service import RagService
@@ -201,7 +201,7 @@ async def list_documents(limit: int = 50, offset: int = 0):
 #         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
 
-@router.get("/query", response_model=DocumentQueryResponse)
+@router.get("/query")
 async def query_documents(
     query: str = Query(...),
     top_k: int = Query(5),
@@ -239,18 +239,29 @@ async def query_documents(
     if conversation_id:
         history = await query_service.get_query_sessions_by_conversation_id(conversation_id)
 
-    context = rag_helpers.build_context(results["results"], request)
+    # context = rag_helpers.build_context(results["results"], request)
     db_context = rag_helpers.build_context_db(results["db_results"], request)
     
-    output = await rag_helpers.get_query_output(request, context, results["results"], history)
+    # output = await rag_helpers.get_query_output(request, context, results["results"], history)
     db_output = await rag_helpers.get_query_output(request, db_context, results["db_results"], history)
 
     # save query session
-    relevant_chunks = [chunk for doc in output["results"] for chunk in doc["relevant_chunks"]]
+    # relevant_chunks = [chunk for doc in output["results"] for chunk in doc["relevant_chunks"]]
+    relevant_chunks = [chunk for doc in db_output["results"] for chunk in doc["relevant_chunks"]]
 
+    # query_session_payload = QuerySessionCreateRequest(
+    #     query=query,
+    #     response=output["llm_response"],
+    #     model=model,
+    #     top_k=top_k,
+    #     retrieved_chunks=str(relevant_chunks),
+    #     user_id=user_id,
+    #     document_ids=results["updated_document_ids"],
+    #     conversation_id=conversation_id
+    # )
     query_session_payload = QuerySessionCreateRequest(
         query=query,
-        response=output["llm_response"],
+        response=db_output["llm_response"],
         model=model,
         top_k=top_k,
         retrieved_chunks=str(relevant_chunks),
@@ -260,9 +271,11 @@ async def query_documents(
     )
 
     query_session = await query_service.create_query_session(query_session_payload)
-    output["query_session"] = query_session.model_dump()
+    # output["query_session"] = query_session.model_dump()
+    db_output["query_session"] = query_session.model_dump()
 
-    return {"output": output, "db_output": db_output}
+    # return {"output": output, "db_output": db_output}
+    return db_output
 
 
 @router.get("/llms")

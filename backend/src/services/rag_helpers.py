@@ -40,7 +40,7 @@ def build_context_db(results, request) -> str:
     """Build context from query results from db"""
     all_chunks = []
     for res in results:
-        for item in res:
+        for item in res["relevant_chunks"]:
             all_chunks.append({
                 "document_name": item["document_name"],
                 "answer": item["answer"],

@@ -36,6 +36,28 @@ def build_context(results, request) -> str:
 
     return context
 
+def build_context_db(results, request) -> str:
+    """Build context from query results from db"""
+    all_chunks = []
+    for res in results:
+        for item in res:
+            all_chunks.append({
+                "document_name": item["document_name"],
+                "answer": item["answer"],
+                "similarity_score": item["similarity_score"],
+                "document_id": item["document_id"],
+                "page_number": item["page_number"]
+            })
+    
+    top_chunks = sorted(all_chunks, key=lambda x: x["similarity_score"], reverse=True)[:request.top_k]
+
+    context = "\n".join(
+        f"- (score={item['similarity_score']:.4f}, doc={item['document_name'].split('/')[-1]}, page={item['page_number']}) {item['answer']}"
+        for item in top_chunks
+    )
+
+    return context
+
 def format_history(history: list) -> str:
     """Format history to be passed to context"""
     formatted_history = ""
@@ -95,7 +117,8 @@ async def get_full_document(document) -> dict:
                 "filename": document.filename,
                 "created_at": document.created_at
             },
-            "content": []
+            "content": [],
+            "pages": document.pages
         }
         
         for page in document.pages:

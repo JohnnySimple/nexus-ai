@@ -240,7 +240,10 @@ async def query_documents(
         history = await query_service.get_query_sessions_by_conversation_id(conversation_id)
 
     context = rag_helpers.build_context(results["results"], request)
+    db_context = rag_helpers.build_context_db(results["db_results"], request)
+    
     output = await rag_helpers.get_query_output(request, context, results["results"], history)
+    db_output = await rag_helpers.get_query_output(request, db_context, results["db_results"], history)
 
     # save query session
     relevant_chunks = [chunk for doc in output["results"] for chunk in doc["relevant_chunks"]]
@@ -259,7 +262,7 @@ async def query_documents(
     query_session = await query_service.create_query_session(query_session_payload)
     output["query_session"] = query_session.model_dump()
 
-    return output
+    return {"output": output, "db_output": db_output}
 
 
 @router.get("/llms")

@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select, func
 from sqlalchemy.orm import selectinload
+from sqlalchemy import text
 from src.db.models import DocumentGroup, Document, Page, ChunkEmbedding
 
 from typing import List
@@ -107,3 +108,24 @@ async def get_total_documents(session: AsyncSession) -> int:
     """Retrieve total documents"""
     results = await session.execute(select(func.count()).select_from(Document))
     return results.scalar_one()
+
+async def search_similar_chunks(session: AsyncSession, embedding: list[float], page_ids: list, top_k: int = 5) -> List[ChunkEmbedding]:
+    """Search for similar chunks based on embedding"""
+    sql = text("""
+        SELECT id,
+               chunk_text,
+               page_id,
+               embedding <=> :embedding AS distance
+        FROM chunk_embeddings ce
+        WHERE ce.page_id = ANY(:page_ids)
+        ORDER BY ce.embedding <=> :embedding 
+        LIMIT :top_k
+    """)
+    result = await session.execute(sql, {"embedding": to_pgvector(embedding), "page_ids": page_ids, "top_k": top_k})
+    return result.mappings().all()
+    # similar_chunks = result.fetchall()
+    # return [row[0] for row in similar_chunks]
+
+def to_pgvector(embedding: List[float]) -> str:
+    """Convert a list of floats to PostgreSQL vector format"""
+    return "[" + ','.join(str(v) for v in embedding) + "]"

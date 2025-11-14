@@ -448,7 +448,8 @@ export default function Conversation() {
                                         Retrieved Chunks:
                                     </p>
                                     <div className="flex flex-wrap gap-2">
-                                        {turn.retrieved_chunks[0].map((chunk, idx) => (
+                                        {/* {turn.retrieved_chunks[0].map((chunk, idx) */}
+                                        {turn.retrieved_chunks.map((chunk, idx) => (
                                         <Badge
                                             key={idx}
                                             variant="secondary"

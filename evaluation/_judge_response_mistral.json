@@ -1,0 +1,122 @@
+[
+    {
+        "question": "When was Orion Analytics founded?",
+        "expected": "2014",
+        "answer": " Orion Analytics was founded in 2014.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "What was the company\u2019s total revenue in 2024?",
+        "expected": "$286.4 million",
+        "answer": " The total revenue of Orion Analytics in 2024 was $286.4 million.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "Which region contributed the most revenue in 2024?",
+        "expected": "North America",
+        "answer": " Based on the provided context, the North American region contributed the most revenue in 2024, accounting for 58% of total revenue.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "What percentage of total revenue came from Europe?",
+        "expected": "27%",
+        "answer": " The percentage of total revenue that came from Europe in the Orion Analytics 2024 report was 27%.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "How much did operating expenses increase by?",
+        "expected": "8%",
+        "answer": " Operating expenses increased by 8% in 2024 compared to the previous year, primarily due to investments in cloud infrastructure and AI research.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "What was Orion\u2019s net profit in 2024?",
+        "expected": "$47.3 million",
+        "answer": " Orion Analytics' net profit in 2024 was $47.3 million, an increase from $42.5 million in 2023. This growth can be attributed to a rise in total revenue and controlled operating expenses.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "Name Orion\u2019s three main product lines.",
+        "expected": "Orion Insight, Orion Stream, Orion Guard",
+        "answer": " Orion Analytics' three main product lines are Orion Insight for data visualization, Orion Stream for real-time data processing, and Orion Guard, an AI-based cybersecurity monitoring tool introduced in Q2 of 2024.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "Which product was introduced in 2024 Q2?",
+        "expected": "Orion Guard",
+        "answer": " The product introduced by Orion Analytics in Q2 of 2024 is Orion Guard, an AI-based cybersecurity monitoring tool. This new product contributed approximately $19 million in revenue in its first two quarters.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "How much revenue did Orion Guard generate in its first two quarters?",
+        "expected": "$19 million",
+        "answer": " Orion Guard generated approximately $19 million in revenue during its first two quarters of operation in 2024. This is based on the information provided in the context that it was introduced in Q2 of 2024.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "By what percentage did the R&D AI team expand?",
+        "expected": "30%",
+        "answer": " The R&D AI team at Orion Analytics expanded by 30% in 2024.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "Which university did Orion partner with for research in 2024?",
+        "expected": "MIT",
+        "answer": " Orion Analytics partnered with MIT (Massachusetts Institute of Technology) for research in 2024, specifically focusing on large language model applications in supply chain optimization.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "What is the purpose of the Green Compute initiative?",
+        "expected": "To reduce GPU power consumption during training",
+        "answer": " The purpose of the Green Compute initiative by Orion Analytics is to reduce GPU power consumption during training, contributing to sustainability efforts.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "What was the reduction in carbon emissions achieved since 2022?",
+        "expected": "23%",
+        "answer": " The reduction in carbon emissions achieved since 2022 by Orion Analytics was 23%. This reduction was made possible through the \"Green Compute\" initiative aimed at reducing GPU power consumption during training.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "Who were the two new board members added in 2024?",
+        "expected": "Dr. Aisha Patel and Michael Chen",
+        "answer": " In the Orion Analytics 2024 Annual Report, it was stated that Dr. Aisha Patel and Michael Chen were the two new board members added in 2024.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    },
+    {
+        "question": "What areas of AI research did the company focus on?",
+        "expected": "Deep learning explainability and multimodal data fusion",
+        "answer": " Orion Analytics focuses on predictive analytics, AI-driven automation, and enterprise data integration. The company also has three primary product lines: Orion Insight, Orion Stream, and Orion Guard. Additionally, their R&D department is investing in deep learning explainability and multimodal data fusion, with a joint research lab established at MIT for exploring large language model applications in supply chain optimization.",
+        "evaluation": "Correct",
+        "score": 1.0,
+        "justification": "The model's answer correctly expresses the same factual meaning as the expected answer."
+    }
+]

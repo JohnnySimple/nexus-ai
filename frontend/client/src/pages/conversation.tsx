@@ -156,7 +156,7 @@ export default function Conversation() {
         params.append("document_ids", id);
       });
 
-      queryDocumentsData?.groupIds.forEach(id => {
+      queryDocumentsData?.groupIds?.forEach(id => {
         params.append("document_group_ids", id)
       });
       

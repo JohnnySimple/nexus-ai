@@ -22,6 +22,7 @@ class DocumentGroup(SQLModel, table=True):
     description: str
     color: str
     created_at: str
+    user_id: str = Field(foreign_key="users.id", nullable=False)
     documents: List["Document"] = Relationship(back_populates="document_group", sa_relationship_kwargs={"cascade": "all, delete"})
 
 class Document(SQLModel, table=True):
@@ -37,6 +38,7 @@ class Document(SQLModel, table=True):
     filename: str
     created_at: str
     pages: List["Page"] = Relationship(back_populates="document", sa_relationship_kwargs={"cascade": "all, delete"})
+    user_id: str = Field(foreign_key="users.id", nullable=False)
     document_group_id: str = Field(foreign_key="document_groups.id")
     document_group: Optional[DocumentGroup] = Relationship(back_populates="documents")
     rag_settings: "RagSetting" = Relationship(back_populates="document", sa_relationship_kwargs={"cascade": "all, delete"})

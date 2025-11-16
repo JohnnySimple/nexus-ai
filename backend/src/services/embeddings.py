@@ -262,7 +262,6 @@ class Embeddings:
         
         async for session in get_session():
             similar_chunks = await search_similar_chunks(session, query_embedding, page_ids, top_k)
-            print(f"similar_chunks: {similar_chunks}")
 
             if settings.RERANK_TOP_K:
                     similar_chunks = self.rerank_db(query, similar_chunks, top_k//2)
@@ -300,7 +299,7 @@ class Embeddings:
                             "similarity_score": round(float(chunk["distance"]), 4),
                             "document_id": page_info.get("document_id"),
                             "page_number": page_info.get("page_number"),
-                            "rerank_score": chunk["rerank_score"]
+                            "rerank_score": chunk["rerank_score"] if "rerank_score" in chunk else None
                         }
                     ]
                 })

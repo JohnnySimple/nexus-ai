@@ -42,7 +42,8 @@ export default function Conversation() {
 
    // get documents
   useEffect(() => {
-    const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents`)
+    const user_id = JSON.parse(localStorage.getItem("user")).id;
+    const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents?user_id=${user_id}`)
       .then((res) => res.json()).then((data) => {
         setDocuments(data);
       }).catch((error) => {
@@ -73,7 +74,7 @@ export default function Conversation() {
     setSelectedConversation([]);
     setSelectedConversationId("");
     
-    if (conversationId.startsWith("conv-")) {
+    if (conversationId?.startsWith("conv-")) {
       setSelectedConversationId(conversationId);
       setSelectedConversation([
         {

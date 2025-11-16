@@ -256,11 +256,17 @@ class Embeddings:
         """Search for similar chunks directly from db"""
         query_embedding = self.model.encode(query).tolist()
         page_ids = self.extract_page_ids(documents)
+
+        if settings.RERANK_TOP_K:
+            top_k = top_k * 2
         
         async for session in get_session():
             similar_chunks = await search_similar_chunks(session, query_embedding, page_ids, top_k)
-            # print(f"similar_chunks: {similar_chunks}")
+            print(f"similar_chunks: {similar_chunks}")
 
+            if settings.RERANK_TOP_K:
+                    similar_chunks = self.rerank_db(query, similar_chunks, top_k//2)
+            
             doc_map = {doc["id"]: doc for doc in documents}
             page_map = {}
             for doc in documents:
@@ -274,7 +280,7 @@ class Embeddings:
 
             results = []
             for chunk in similar_chunks:
-                page_info = page_map.get(chunk.page_id, {})
+                page_info = page_map.get(chunk["page_id"], {})
                 results.append({
                     "document": {
                         "id": page_info.get("document_id"),
@@ -290,11 +296,11 @@ class Embeddings:
                     "relevant_chunks": [
                         {
                             "document_name": page_info.get("document_name"),
-                            "answer": chunk.chunk_text,
-                            "similarity_score": round(float(chunk.distance), 4),
+                            "answer": chunk["chunk_text"],
+                            "similarity_score": round(float(chunk["distance"]), 4),
                             "document_id": page_info.get("document_id"),
                             "page_number": page_info.get("page_number"),
-                            "rerank_score": round(float(chunk.distance), 4),
+                            "rerank_score": chunk["rerank_score"]
                         }
                     ]
                 })
@@ -364,5 +370,21 @@ class Embeddings:
 
         # reranked = sorted(similarity, key=lambda x: x[4], reverse=True)[:int(top_k)]  # x[4] is the new score
         reranked = sorted(similarity, key=lambda x: x["rerank_score"], reverse=True)[:int(top_k)]
+
+        return reranked
+    
+    def rerank_db(self, query: str, similarity_chunks, top_k) -> list[dict]:
+        """Rerank the top similar chunks from db using a cross-encoder model"""
+        reranker = CrossEncoder(settings.CROSS_ENCODER_MODEL)
+
+        similarity_chunks = [dict(chunk) for chunk in similarity_chunks]
+
+        pairs = [(query, chunk["chunk_text"]) for chunk in similarity_chunks]
+        scores = reranker.predict(pairs).tolist()
+
+        for index, chunk in enumerate(similarity_chunks):
+            chunk["rerank_score"] = scores[index]
+
+        reranked = sorted(similarity_chunks, key=lambda x: x["rerank_score"], reverse=True)[:int(top_k)]  # x.rerank_score is the new score
 
         return reranked

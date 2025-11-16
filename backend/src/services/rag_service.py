@@ -131,10 +131,10 @@ class RagService:
         try:
             documents = await self.get_multiple_documents(document_ids, document_group_ids)
             if settings.USE_DB:
-                results = self.embedding_service.search_with_documents(query, documents["document_list"], top_k)
+                # results = self.embedding_service.search_with_documents(query, documents["document_list"], top_k)
                 db_results = await self.embedding_service.search_with_documents_db(query, documents["document_list"], top_k)
                 return {
-                    "results": results,
+                    # "results": results,
                     "db_results": db_results,
                     "updated_document_ids": documents["updated_document_ids"]
                 }

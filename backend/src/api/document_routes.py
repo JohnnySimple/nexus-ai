@@ -12,10 +12,10 @@ router = APIRouter()
 document_service = DocumentService()
 
 @router.post("/group")
-async def create_document_group(name: str = Query(...), description: Optional[str] = Query(default=None), color: str = Query(...)):
+async def create_document_group(name: str = Query(...), description: Optional[str] = Query(default=None), color: str = Query(...), user_id: str = Query(...)):
     """Create a new document group."""
     try:
-        group = await document_service.create_document_group(name, description, color)
+        group = await document_service.create_document_group(name, description, color, user_id)
         return {"status": "success", "group_id": group.id}
     except Exception as e:
         logger.error(f"Error creating document group: {e}")
@@ -23,10 +23,10 @@ async def create_document_group(name: str = Query(...), description: Optional[st
 
 
 @router.get("/group", response_model=List[DocumentGroupResponse])
-async def list_document_groups(limit: int = 50, offset: int = 0):
+async def list_document_groups(user_id: str, limit: int = 50, offset: int = 0):
     """List all document groups."""
     try:
-        document_groups = await document_service.list_document_groups(limit=limit, offset=offset)
+        document_groups = await document_service.list_document_groups(user_id=user_id, limit=limit, offset=offset)
 
         return [
             DocumentGroupResponse(

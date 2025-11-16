@@ -8,14 +8,15 @@ from typing import List
 import time
 
 
-async def create_document_group(session: AsyncSession, name: str, description: str, color: str) -> DocumentGroup:
+async def create_document_group(session: AsyncSession, name: str, description: str, color: str, user_id: str) -> DocumentGroup:
     """Create a new document group in the database"""
 
     document_group = DocumentGroup(
         name=name,
         description=description,
         color=color,
-        created_at=time.strftime("%Y-%m-%d %H:%M:%S")
+        created_at=time.strftime("%Y-%m-%d %H:%M:%S"),
+        user_id=user_id
     )
     session.add(document_group)
     await session.commit()
@@ -30,9 +31,11 @@ async def get_document_group_by_id(session: AsyncSession, group_id: str) -> Docu
     document_group = result.scalar_one_or_none()
     return document_group
 
-async def get_all_document_groups(session: AsyncSession) -> List[DocumentGroup]:
+async def get_all_document_groups_by_user_id(session: AsyncSession, user_id) -> List[DocumentGroup]:
     """Retrieve all document groups from the database"""
-    result = await session.execute(select(DocumentGroup).options(
+    result = await session.execute(select(DocumentGroup)
+    .where(DocumentGroup.user_id == user_id)
+    .options(
         selectinload(DocumentGroup.documents)
     ))
     document_groups = result.scalars().all()
@@ -96,17 +99,19 @@ async def get_document_ids_by_group_ids(session: AsyncSession, group_ids: List[s
     document_ids = result.scalars().all()
     return document_ids
 
-async def get_all_documents(session: AsyncSession) -> List[Document]:
+async def get_all_documents_by_user_id(session: AsyncSession, user_id: str) -> List[Document]:
     """Retrieve all documents from the database"""
-    result = await session.execute(select(Document).options(
+    result = await session.execute(select(Document)
+    .where(Document.user_id == user_id)
+    .options(
         selectinload(Document.pages).selectinload(Page.embeddings)
     ))
     documents = result.scalars().all()
     return documents
 
-async def get_total_documents(session: AsyncSession) -> int:
-    """Retrieve total documents"""
-    results = await session.execute(select(func.count()).select_from(Document))
+async def get_total_documents_by_user_id(session: AsyncSession, user_id: str) -> int:
+    """Retrieve total documents by user id"""
+    results = await session.execute(select(func.count()).select_from(Document).where(Document.user_id == user_id))
     return results.scalar_one()
 
 async def search_similar_chunks(session: AsyncSession, embedding: list[float], page_ids: list, top_k: int = 5) -> List[ChunkEmbedding]:

@@ -3,7 +3,7 @@ from src.config import settings
 from src.db.database import get_session
 
 from src.crud.document_crud import get_document_by_id, get_document_group_by_id,\
-    get_all_document_groups, create_document_group, get_total_documents
+    get_all_document_groups_by_user_id, create_document_group, get_total_documents_by_user_id
 
 
 class DocumentService:
@@ -14,13 +14,13 @@ class DocumentService:
     def __init__(self):
         pass
 
-    async def create_document_group(self, name: str, description: str, color: str):
+    async def create_document_group(self, name: str, description: str, color: str, user_id: str):
         """
         Create a new document group
         """
         if settings.USE_DB:
             async for session in get_session():
-                document_group = await create_document_group(session, name, description, color)
+                document_group = await create_document_group(session, name, description, color, user_id=user_id)
                 return document_group
         else:
             pass
@@ -40,14 +40,14 @@ class DocumentService:
         else:
             pass
 
-    async def list_document_groups(self, limit: int = 50, offset: int = 0) -> list[dict]:
+    async def list_document_groups(self, user_id, limit: int = 50, offset: int = 0) -> list[dict]:
         """
         List all document groups
         """
 
         if settings.USE_DB:
             async for session in get_session():
-                document_groups = await get_all_document_groups(session)
+                document_groups = await get_all_document_groups_by_user_id(session, user_id)
                 
                 return document_groups
         else:
@@ -89,9 +89,9 @@ class DocumentService:
         else:
             pass
 
-    async def get_total_documents(self):
+    async def get_total_documents_by_user_id(self, user_id: str) -> int:
          """Get total documents"""
          async for session in get_session():
-            count = await get_total_documents(session)
+            count = await get_total_documents_by_user_id(session, user_id)
             
             return count

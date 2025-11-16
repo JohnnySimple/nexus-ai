@@ -28,7 +28,7 @@ rag_service = RagService()
 query_service = QueryService()
 
 @router.post("/documents/upload", response_model=DocumentIngestResponse)
-async def upload_document(file: UploadFile = File(...), group_id: Optional[str] = Query(default=None)):
+async def upload_document(file: UploadFile = File(...), group_id: str = Query(...), user_id: str = Query(...)):
     """Upload and ingest a document into the RAG system."""
     try:
         doc_type = helper_functions.get_file_type(file.filename)
@@ -52,7 +52,8 @@ async def upload_document(file: UploadFile = File(...), group_id: Optional[str] 
                 "filename": file.filename.split("/")[-1],
                 # **(request.metadata or {})
             },
-            group_id=group_id
+            group_id=group_id,
+            user_id=user_id
         )
         
         return DocumentIngestResponse(
@@ -146,10 +147,10 @@ async def get_document(document_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to get document: {str(e)}")
 
 @router.get("/documents", response_model=List[DocumentResponse])
-async def list_documents(limit: int = 50, offset: int = 0):
+async def list_documents(user_id: str, limit: int = 50, offset: int = 0):
     """List all ingested documents."""
     try:
-        documents = await rag_service.list_documents(limit=limit, offset=offset)
+        documents = await rag_service.list_documents(user_id=user_id, limit=limit, offset=offset)
 
         # if settings.USE_DB:
         return [

@@ -6,7 +6,7 @@ import uuid
 import logging
 
 from src.config import settings
-from src.crud.document_crud import get_all_documents, get_document_by_id, get_documents_by_ids, get_document_ids_by_group_ids
+from src.crud.document_crud import get_all_documents_by_user_id, get_document_by_id, get_documents_by_ids, get_document_ids_by_group_ids
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.database import get_session
 import src.services.rag_helpers as rag_helpers
@@ -36,7 +36,7 @@ class RagService:
             return content
         
     
-    async def ingest_document(self, content: str, metadata: dict, group_id: str) -> str:
+    async def ingest_document(self, content: str, metadata: dict, group_id: str, user_id: str) -> str:
         """
         Ingest a document into the RAG system.
         """
@@ -50,7 +50,7 @@ class RagService:
                 "metadata": metadata
             }
 
-            await self.embedding_service.save_embedding(document, group_id)
+            await self.embedding_service.save_embedding(document, group_id, user_id)
 
             return document_id
         except Exception as e:
@@ -101,14 +101,14 @@ class RagService:
             pass
 
 
-    async def list_documents(self, limit: int = 50, offset: int = 0) -> list[dict]:
+    async def list_documents(self, user_id: str, limit: int = 50, offset: int = 0) -> list[dict]:
         """
         List all ingested documents
         """
 
         if settings.USE_DB:
             async for session in get_session():
-                documents = await get_all_documents(session)
+                documents = await get_all_documents_by_user_id(session, user_id)
                 document_list = []
 
                 for doc in documents:

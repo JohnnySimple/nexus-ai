@@ -74,7 +74,8 @@ export default function Documents() {
 
     // get documents
     useEffect(() => {
-      const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents`)
+      const user_id = JSON.parse(localStorage.getItem("user")).id;
+      const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents?user_id=${user_id}`)
         .then((res) => res.json()).then((data) => {
           setDocuments(data);
           setIsLoading(false)
@@ -87,7 +88,8 @@ export default function Documents() {
     mutationFn: async ({ file, groupId }: {file: File; groupId?: string}) => {
       const formData = new FormData();
       formData.append("file", file);
-      return apiRequest("POST", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents/upload?group_id=${groupId}`, formData);
+      const user_id = JSON.parse(localStorage.getItem("user")).id;
+      return apiRequest("POST", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents/upload?group_id=${groupId}&user_id=${user_id}`, formData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });

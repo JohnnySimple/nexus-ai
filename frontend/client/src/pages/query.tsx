@@ -437,7 +437,7 @@ export default function Query() {
                                       {chunk}
                                     </div>
                                   ))} */}
-                                  {session.retrieved_chunks[0].slice(0,2).map((chunk, idx) => (
+                                  {session.retrieved_chunks.slice(0,2).map((chunk, idx) => (
                                     <div
                                       key={idx}
                                       className="text-xs bg-muted rounded p-2 font-mono line-clamp-2"

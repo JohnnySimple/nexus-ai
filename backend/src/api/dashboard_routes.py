@@ -19,7 +19,15 @@ async def get_status_by_user_id(user_id: str):
 
         return StatsResponse(
             query_count=query_session_count,
-            document_count=document_count
+            document_count=document_count,
+            total_documents=1,
+            total_chunks=10,
+            total_embeddings=10,
+            total_pages=2,
+            dimensionality=384,
+            disk_usage_mb=12.34,
+            health_status="Healthy",
+            last_updated="2024-06-01T12:00:00Z"
         )
 
     except HTTPException as he:

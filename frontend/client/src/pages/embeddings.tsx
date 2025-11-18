@@ -7,13 +7,28 @@ import { Database, RefreshCw, Activity, HardDrive, Layers, CheckCircle2 } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { VectorStoreStats } from "@shared/schema";
+import { useEffect, useState } from "react";
 
 export default function Embeddings() {
   const { toast } = useToast();
+  const [stats, setStats] = useState<{}>({});
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { data: stats, isLoading } = useQuery<VectorStoreStats>({
-    queryKey: ["/api/vector-store/stats"],
-  });
+  // const { data: stats, isLoading } = useQuery<VectorStoreStats>({
+  //   queryKey: ["/api/vector-store/stats"],
+  // });
+
+  // get dashbaord stats
+  useEffect(() => {
+    const user_id = JSON.parse(localStorage.getItem("user")).id;
+    const dashboardStats = apiRequest("GET",
+      `${import.meta.env.VITE_API_BASE_URL}/api/dashboard/stats/${user_id}`)
+    .then((res) => res.json()).then((data) => {
+        setStats(data);
+    }).catch((error) => {
+        console.error("Error fetching stats:", error);
+    });
+  }, []);
 
   const reindexMutation = useMutation({
     mutationFn: async () => {
@@ -89,7 +104,8 @@ export default function Embeddings() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-semibold" data-testid="stat-total-chunks">
-                  {stats.totalChunks.toLocaleString()}
+                  {/* {stats.total_chunks.toLocaleString()} */}
+                  { stats.total_chunks }
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Document segments
@@ -104,7 +120,8 @@ export default function Embeddings() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-semibold" data-testid="stat-total-embeddings">
-                  {stats.totalEmbeddings.toLocaleString()}
+                  {/* {stats.totalEmbeddings.toLocaleString()} */}
+                  {stats.total_embeddings}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Vector embeddings
@@ -134,7 +151,8 @@ export default function Embeddings() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-semibold" data-testid="stat-disk-usage">
-                  {stats.diskUsageMB.toFixed(1)} MB
+                  {/* {stats.diskUsageMB.toFixed(1)} MB */}
+                  {stats.disk_usage_mb} MB
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Storage footprint
@@ -155,8 +173,9 @@ export default function Embeddings() {
                     <CheckCircle2 className={`h-5 w-5 ${getHealthColor(stats.healthStatus)}`} />
                     <span className="font-medium">Status</span>
                   </div>
-                  <Badge variant={getHealthBadgeVariant(stats.healthStatus)} data-testid="badge-health-status">
-                    {stats.healthStatus.charAt(0).toUpperCase() + stats.healthStatus.slice(1)}
+                  <Badge variant={getHealthBadgeVariant(stats.health_status)} data-testid="badge-health-status">
+                    {/* {stats.healthStatus.charAt(0).toUpperCase() + stats.healthStatus.slice(1)} */}
+                    {stats.health_status + stats.health_status}
                   </Badge>
                 </div>
                 <div className="space-y-2">

@@ -40,7 +40,7 @@ export default function Conversation() {
     messagesEndRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
   };
 
-   // get documents
+  // get documents
   useEffect(() => {
     const user_id = JSON.parse(localStorage.getItem("user")).id;
     const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents?user_id=${user_id}`)

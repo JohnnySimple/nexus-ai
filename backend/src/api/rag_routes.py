@@ -215,6 +215,8 @@ async def query_documents(
     conversation_id: str = ""
 ):
     """Query documents in the RAG system."""
+    start_time = time.time()
+
     request = DocumentQueryRequest(
         query=query,
         top_k=top_k,
@@ -260,6 +262,9 @@ async def query_documents(
     #     document_ids=results["updated_document_ids"],
     #     conversation_id=conversation_id
     # )
+
+    end_time = time.time()
+
     query_session_payload = QuerySessionCreateRequest(
         query=query,
         response=db_output["llm_response"],
@@ -268,7 +273,8 @@ async def query_documents(
         retrieved_chunks=str(relevant_chunks),
         user_id=user_id,
         document_ids=results["updated_document_ids"],
-        conversation_id=conversation_id
+        conversation_id=conversation_id,
+        response_time=round(end_time - start_time, 2)
     )
 
     query_session = await query_service.create_query_session(query_session_payload)

@@ -20,11 +20,13 @@ export default function Embeddings() {
 
   // get dashbaord stats
   useEffect(() => {
+    setIsLoading(true);
     const user_id = JSON.parse(localStorage.getItem("user")).id;
     const dashboardStats = apiRequest("GET",
       `${import.meta.env.VITE_API_BASE_URL}/api/dashboard/stats/${user_id}`)
     .then((res) => res.json()).then((data) => {
         setStats(data);
+        setIsLoading(false);
     }).catch((error) => {
         console.error("Error fetching stats:", error);
     });

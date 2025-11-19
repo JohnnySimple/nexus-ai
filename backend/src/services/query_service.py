@@ -55,6 +55,13 @@ class QueryService:
             avg_response_time = await query_crud.get_average_response_time_by_user_id(session, user_id)
             
             return avg_response_time
+    
+    async def get_daily_response_times_by_user_id(self, user_id):
+         """Get daily average response times by user id"""
+         async for session in get_session():
+              daily_response_times = await query_crud.get_daily_average_response_times_by_user_id(session, user_id)
+              
+              return daily_response_times
 
     async def get_query_sessions_by_conversation_id(self, conversation_id):
          """Get query sessions by conversation id"""

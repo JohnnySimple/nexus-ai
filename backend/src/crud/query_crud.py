@@ -2,10 +2,11 @@
 import time
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, func, delete
+from sqlmodel import select, func, text, delete, cast, DateTime
 from sqlalchemy.orm import selectinload
 from src.db.models import QuerySession
 from src.schemas.query_schema import QuerySessionCreateRequest
+from datetime import datetime, timedelta
 
 
 async def create_query_session(session: AsyncSession,
@@ -96,6 +97,21 @@ async def get_average_response_time_by_user_id(session: AsyncSession, user_id: s
     """Retrieve average response time by user id"""
     results = await session.execute(select(func.avg(QuerySession.response_time)).where(QuerySession.user_id == user_id))
     return results.scalar_one() or 0.0
+
+async def get_daily_average_response_times_by_user_id(session: AsyncSession, user_id: str, limit: int = 7) -> list[tuple[str, float]]:
+    """Retrieve daily average response times by user id"""
+    start_date = datetime.utcnow() - timedelta(days=limit)
+    created_at_ts = cast(QuerySession.created_at, DateTime)
+    results = await session.execute(
+        select(
+            func.date(QuerySession.created_at),
+            func.coalesce(func.avg(QuerySession.response_time), 0.0)
+        ).where(QuerySession.user_id == user_id)
+         .where(created_at_ts >= start_date)
+         .group_by(func.date(QuerySession.created_at))
+         .order_by(func.date(QuerySession.created_at))
+    )
+    return results.all()
 
 async def delete_conversation_by_conversation_id(session: AsyncSession, conversation_id: str) -> bool:
     """Delete conversation by conversation id"""

@@ -5,6 +5,8 @@ from src.db.database import get_session
 from src.crud.query_crud import create_query_session, get_query_session_by_id, get_query_sessions_by_user_id,\
     get_query_sessions_by_conversation_id, get_total_query_sessions_by_user_id, delete_conversation_by_conversation_id
 
+from src.crud import query_crud
+
 
 class QueryService:
     """
@@ -47,6 +49,13 @@ class QueryService:
             
             return count
     
+    async def get_average_response_time_by_user_id(self, user_id):
+         """Get average response time by user id"""
+         async for session in get_session():
+            avg_response_time = await query_crud.get_average_response_time_by_user_id(session, user_id)
+            
+            return avg_response_time
+
     async def get_query_sessions_by_conversation_id(self, conversation_id):
          """Get query sessions by conversation id"""
          async for session in get_session():

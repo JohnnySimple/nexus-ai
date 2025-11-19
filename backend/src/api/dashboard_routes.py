@@ -16,6 +16,7 @@ async def get_status_by_user_id(user_id: str):
     try:
         query_session_count = await query_service.get_total_query_sessions_by_user_id(user_id)
         document_count = await document_service.get_total_documents_by_user_id(user_id)
+        avg_response_time = await query_service.get_average_response_time_by_user_id(user_id)
 
         total_embeddings = 10
 
@@ -29,7 +30,8 @@ async def get_status_by_user_id(user_id: str):
             dimensionality=384,
             disk_usage_mb=total_embeddings * 384 * 4 / (1024 * 1024),
             health_status="Healthy",
-            last_updated="2024-06-01T12:00:00Z"
+            last_updated="2024-06-01T12:00:00Z",
+            average_response_time=round(avg_response_time, 2)
         )
 
     except HTTPException as he:

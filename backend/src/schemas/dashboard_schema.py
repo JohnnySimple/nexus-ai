@@ -13,3 +13,4 @@ class StatsResponse(BaseModel):
     disk_usage_mb: float
     health_status: str
     last_updated: Optional[str] = None
+    average_response_time: Optional[float] = Field(None, description="Average response time in seconds")

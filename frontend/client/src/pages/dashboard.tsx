@@ -97,7 +97,7 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold" data-testid="stat-avg-response-time">
-              {avgResponseTime.toFixed(0)}ms
+              {stats.average_response_time?.toFixed(2)}s
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Across all queries

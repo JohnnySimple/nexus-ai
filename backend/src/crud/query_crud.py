@@ -92,6 +92,11 @@ async def get_total_query_sessions_by_user_id(session: AsyncSession, user_id: st
     results = await session.execute(select(func.count()).select_from(QuerySession).where(QuerySession.user_id == user_id))
     return results.scalar_one()
 
+async def get_average_response_time_by_user_id(session: AsyncSession, user_id: str) -> float:
+    """Retrieve average response time by user id"""
+    results = await session.execute(select(func.avg(QuerySession.response_time)).where(QuerySession.user_id == user_id))
+    return results.scalar_one() or 0.0
+
 async def delete_conversation_by_conversation_id(session: AsyncSession, conversation_id: str) -> bool:
     """Delete conversation by conversation id"""
     conversations = await get_query_sessions_by_conversation_id(session, conversation_id)

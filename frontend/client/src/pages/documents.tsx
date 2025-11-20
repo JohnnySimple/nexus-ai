@@ -64,7 +64,8 @@ export default function Documents() {
 
   // get document groups
     useEffect(() => {
-      const groups = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/documents/group`)
+      const user_id = JSON.parse(localStorage.getItem("user")).id;
+      const groups = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/documents/group?user_id=${user_id}`)
         .then((res) => res.json()).then((data) => {
           setDocumentGroups(data);
         }).catch((error) => {

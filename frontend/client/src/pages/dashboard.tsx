@@ -192,7 +192,7 @@ export default function Dashboard() {
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[200px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analytics}>
+                <BarChart data={stats.daily_average_response_times}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="date"
@@ -202,7 +202,7 @@ export default function Dashboard() {
                   <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar
-                    dataKey="avgResponseTime"
+                    dataKey="avg_response_time"
                     fill="var(--color-avgResponseTime)"
                     radius={[4, 4, 0, 0]}
                   />

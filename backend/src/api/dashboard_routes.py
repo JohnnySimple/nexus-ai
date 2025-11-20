@@ -34,7 +34,7 @@ async def get_status_by_user_id(user_id: str):
             health_status="Healthy",
             last_updated="2024-06-01T12:00:00Z",
             average_response_time=round(avg_response_time, 2),
-            daily_average_response_times=[(str(date), round(avg_time, 2)) for date, avg_time in daily_average_response_times]
+            daily_average_response_times=[{"date": str(date), "avg_response_time": round(avg_time, 2)} for date, avg_time in daily_average_response_times]
         )
 
     except HTTPException as he:

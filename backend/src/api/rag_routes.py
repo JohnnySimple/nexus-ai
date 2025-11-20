@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from fastapi import APIRouter, Query, HTTPException, UploadFile, File
 from starlette.responses import StreamingResponse
+from fastapi.responses import FileResponse
 
 from typing import List, Optional, Dict, Any
 import uuid
@@ -84,6 +85,29 @@ async def upload_document(file: UploadFile = File(...), group_id: str = Query(..
     except Exception as e:
         logger.error(f"Error ingesting document: {e}")
         return {"error": str(e)}
+
+@router.get("/documents/{document_id}/download")
+async def download_document(document_id: str):
+    """Serve document file for viewing or downloading."""
+    try:
+        file_path = helper_functions.get_document_file_path(document_id)
+
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail=f"Document: {document_id} file not found.")
+        
+        return FileResponse(path=file_path,
+                            filename=os.path.basename(file_path),
+                            media_type='application/pdf',
+                            headers={"Content-Disposition": f"inline; filename={os.path.basename(file_path)}"})
+        # return {
+        #     "file_path": file_path
+        # }
+    except FileNotFoundError:
+        logger.error(f"Document file not found for ID: {document_id}")
+        raise HTTPException(status_code=404, detail=f"Document: {document_id} file not found.")
+    except Exception as e:
+        logger.error(f"Failed to download document: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to load document: {str(e)}")
 
 @router.post("/ingest", response_model=DocumentIngestResponse)
 async def ingest_document(request: DocumentIngestRequest):

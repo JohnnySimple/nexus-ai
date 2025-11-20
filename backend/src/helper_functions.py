@@ -42,6 +42,23 @@ def save_file_to_permanent_location(temp_file_path: str, document_id: str, file_
         permanent_file_path = temp_file_path  # fallback to temp path
         os.remove(temp_file_path)  # Clean up the temporary file
 
+def get_document_file_path(document_id: str) -> str:
+    """Get the file path of a document based on its ID"""
+    import os
+    from pathlib import Path
+
+    if os.name == 'nt':  # Windows
+        documents_dir = Path(os.environ.get("USERPROFILE"), '') / 'Documents' / settings.LOCAL_DOCUMENT_DIRECTORY_NAME
+    else:
+        documents_dir = Path.home() / 'Documents' / settings.LOCAL_DOCUMENT_DIRECTORY_NAME
+
+    # Search for the file with the given document_id
+    for file in documents_dir.iterdir():
+        if file.is_file() and file.name.startswith(document_id + "_"):
+            return str(file)
+    
+    raise FileNotFoundError(f"Document with ID {document_id} not found.")
+
 def get_file_content(file_path: str) -> str:
     """Extract text content from a file based on its type"""
 

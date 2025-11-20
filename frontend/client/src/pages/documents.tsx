@@ -268,7 +268,13 @@ export default function Documents() {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-muted-foreground" />
-                        <span data-testid={`document-name-${doc.id}`}>{doc.filename}</span>
+                        {/* <span data-testid={`document-name-${doc.id}`}>{doc.filename}</span> */}
+                        <button
+                          onClick={() => {
+                            window.open(`${import.meta.env.VITE_API_BASE_URL}/api/rag/documents/${doc.id}/download`, '_blank')
+                          }}>
+                          {doc.filename}
+                        </button>
                       </div>
                     </TableCell>
                     <TableCell>

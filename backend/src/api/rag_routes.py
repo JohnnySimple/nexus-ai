@@ -1,9 +1,11 @@
 
 import os
+from pathlib import Path
 from fastapi import APIRouter, Query, HTTPException, UploadFile, File
 from starlette.responses import StreamingResponse
 
 from typing import List, Optional, Dict, Any
+import uuid
 import logging
 
 from src.schemas.rag_schema import DocumentIngestRequest, DocumentIngestResponse,\
@@ -32,28 +34,46 @@ async def upload_document(file: UploadFile = File(...), group_id: str = Query(..
     """Upload and ingest a document into the RAG system."""
     try:
         doc_type = helper_functions.get_file_type(file.filename)
+        document_id = str(uuid.uuid4())
+        filename = file.filename.split("/")[-1]
 
         if doc_type not in settings.SUPPORTED_FILE_TYPES:
             raise HTTPException(status_code=400, detail=f"Unsupported file type. Supported types are {settings.SUPPORTED_FILE_TYPES}.")
         
+        # # determine user os
+        # if os.name == "nt":
+        #     documents_dir = Path(os.environ.get("USERPROFILE"), '') / 'Documents' / settings.LOCAL_DOCUMENT_DIRECTORY_NAME
+        # else:
+        #     documents_dir = Path.home() / 'Documents' / settings.LOCAL_DOCUMENT_DIRECTORY_NAME
+
+        # permanent_file_path = documents_dir / f"{document_id}_{filename}"
+
+        # with open(permanent_file_path, "wb") as f:
+        #     f.write(await file.read())
+
         temp_file_path = os.path.join(settings.TEMP_UPLOAD_DIR, file.filename)
         with open(temp_file_path, "wb") as f:
             f.write(await file.read())
 
         content = helper_functions.get_file_content(temp_file_path)
 
-        os.remove(temp_file_path)  # Clean up the temporary file
+        helper_functions.save_file_to_permanent_location(
+            temp_file_path=os.path.join(settings.TEMP_UPLOAD_DIR, file.filename),
+            document_id=document_id,
+            file_name=filename
+        )
 
         paginated_data = rag_service.get_paginated_data(content)
 
         doc_id = await rag_service.ingest_document(
             content=paginated_data,
             metadata={
-                "filename": file.filename.split("/")[-1],
+                "filename": filename,
                 # **(request.metadata or {})
             },
             group_id=group_id,
-            user_id=user_id
+            user_id=user_id,
+            document_id=document_id
         )
         
         return DocumentIngestResponse(

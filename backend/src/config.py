@@ -51,6 +51,7 @@ class Config(CustomBaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    LOCAL_DOCUMENT_DIRECTORY_NAME: str = "nexus_ai_uploads"
     TEMP_UPLOAD_DIR: str = "data/temp_uploads"
 
     class Config:

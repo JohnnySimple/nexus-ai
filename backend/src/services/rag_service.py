@@ -36,12 +36,11 @@ class RagService:
             return content
         
     
-    async def ingest_document(self, content: str, metadata: dict, group_id: str, user_id: str) -> str:
+    async def ingest_document(self, content: str, metadata: dict, group_id: str, user_id: str, document_id: str) -> str:
         """
         Ingest a document into the RAG system.
         """
         try:
-            document_id = str(uuid.uuid4())
             metadata["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
 
             document = {

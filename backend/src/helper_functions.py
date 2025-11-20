@@ -4,6 +4,7 @@ import pymupdf
 from spacy.lang.en import English
 from sentence_transformers import SentenceTransformer, util
 import tiktoken
+import logging
 
 from src.config import settings
 
@@ -17,6 +18,29 @@ def get_file_type(file_name: str) -> str:
         return 'docx'
     else:
         return False
+
+def save_file_to_permanent_location(temp_file_path: str, document_id: str, file_name: str) -> str:
+    """Save file from temporary location to permanent location"""
+    try:
+        import os
+        from pathlib import Path
+
+        if os.name == 'nt':  # Windows
+            documents_dir = Path(os.environ.get("USERPROFILE"), '') / 'Documents' / settings.LOCAL_DOCUMENT_DIRECTORY_NAME
+        else:
+            documents_dir = Path.home() / 'Documents' / settings.LOCAL_DOCUMENT_DIRECTORY_NAME
+
+        # create directory if not exists
+        documents_dir.mkdir(parents=True, exist_ok=True)
+
+        permanent_file_path = documents_dir / f"{document_id}_{file_name}"
+        os.rename(temp_file_path, permanent_file_path)
+
+        return str(permanent_file_path)
+    except Exception as e:
+        logging.warning(f"Failed to save file to permanent location: {e}")
+        permanent_file_path = temp_file_path  # fallback to temp path
+        os.remove(temp_file_path)  # Clean up the temporary file
 
 def get_file_content(file_path: str) -> str:
     """Extract text content from a file based on its type"""

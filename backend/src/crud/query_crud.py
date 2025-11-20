@@ -113,6 +113,21 @@ async def get_daily_average_response_times_by_user_id(session: AsyncSession, use
     )
     return results.all()
 
+async def get_daily_query_counts_by_user_id(session: AsyncSession, user_id: str, limit: int = 7) -> list[tuple[str, int]]:
+    """Retrieve daily query counts by user id"""
+    start_date = datetime.utcnow() - timedelta(days=limit)
+    created_at_ts = cast(QuerySession.created_at, DateTime)
+    results = await session.execute(
+        select(
+            func.date(QuerySession.created_at),
+            func.count()
+        ).where(QuerySession.user_id == user_id)
+         .where(created_at_ts >= start_date)
+         .group_by(func.date(QuerySession.created_at))
+         .order_by(func.date(QuerySession.created_at))
+    )
+    return results.all()
+
 async def delete_conversation_by_conversation_id(session: AsyncSession, conversation_id: str) -> bool:
     """Delete conversation by conversation id"""
     conversations = await get_query_sessions_by_conversation_id(session, conversation_id)

@@ -19,6 +19,7 @@ async def get_status_by_user_id(user_id: str):
         avg_response_time = await query_service.get_average_response_time_by_user_id(user_id)
 
         daily_average_response_times = await query_service.get_daily_response_times_by_user_id(user_id)
+        daily_query_counts = await query_service.get_daily_query_counts_by_user_id(user_id)
 
         total_embeddings = 10
 
@@ -34,7 +35,8 @@ async def get_status_by_user_id(user_id: str):
             health_status="Healthy",
             last_updated="2024-06-01T12:00:00Z",
             average_response_time=round(avg_response_time, 2),
-            daily_average_response_times=[{"date": str(date), "avg_response_time": round(avg_time, 2)} for date, avg_time in daily_average_response_times]
+            daily_average_response_times=[{"date": str(date), "avg_response_time": round(avg_time, 2)} for date, avg_time in daily_average_response_times],
+            daily_query_counts=[{"date": str(date), "query_count": count} for date, count in daily_query_counts]
         )
 
     except HTTPException as he:

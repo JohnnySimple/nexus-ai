@@ -63,6 +63,13 @@ class QueryService:
               
               return daily_response_times
 
+    async def get_daily_query_counts_by_user_id(self, user_id):
+         """Get daily query counts by user id"""
+         async for session in get_session():
+              daily_query_counts = await query_crud.get_daily_query_counts_by_user_id(session, user_id)
+              
+              return daily_query_counts
+
     async def get_query_sessions_by_conversation_id(self, conversation_id):
          """Get query sessions by conversation id"""
          async for session in get_session():

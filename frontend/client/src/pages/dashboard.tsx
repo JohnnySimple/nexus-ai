@@ -162,7 +162,7 @@ export default function Dashboard() {
           <CardContent>
             <ChartContainer config={chartConfig} className="h-[200px] w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={analytics}>
+                <LineChart data={stats.daily_query_counts}>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis
                     dataKey="date"
@@ -173,7 +173,7 @@ export default function Dashboard() {
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Line
                     type="monotone"
-                    dataKey="queryCount"
+                    dataKey="query_count"
                     stroke="var(--color-queryCount)"
                     strokeWidth={2}
                     dot={false}

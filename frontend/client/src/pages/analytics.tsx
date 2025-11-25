@@ -5,8 +5,12 @@ import { Line, LineChart, Bar, BarChart, Area, AreaChart, XAxis, YAxis, Cartesia
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { TrendingUp, TrendingDown, Activity, AlertCircle, Zap, Clock } from "lucide-react";
 import type { AnalyticsData } from "@shared/schema";
+import { useState, useEffect } from "react";
+import { apiRequest } from "@/lib/queryClient";
+
 
 export default function Analytics() {
+  const [stats, setStats] = useState<{}>({});
   const { data: analytics = [], isLoading } = useQuery<AnalyticsData[]>({
     queryKey: ["/api/analytics"],
   });
@@ -40,6 +44,18 @@ export default function Analytics() {
     },
   };
 
+  // get dashbaord stats
+  useEffect(() => {
+    const user_id = JSON.parse(localStorage.getItem("user")).id;
+    const dashboardStats = apiRequest("GET",
+      `${import.meta.env.VITE_API_BASE_URL}/api/dashboard/stats/${user_id}`)
+    .then((res) => res.json()).then((data) => {
+        setStats(data);
+    }).catch((error) => {
+        console.error("Error fetching stats:", error);
+    });
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -59,7 +75,7 @@ export default function Analytics() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold" data-testid="analytics-total-queries">
-              {totalQueries.toLocaleString()}
+              {stats.query_count}
             </div>
             <div className="flex items-center gap-1 mt-1">
               <TrendingUp className="h-3 w-3 text-green-500" />
@@ -77,7 +93,7 @@ export default function Analytics() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold" data-testid="analytics-avg-response">
-              {avgResponseTime.toFixed(0)}ms
+              {stats.average_response_time?.toFixed(0)}ms
             </div>
             <div className="flex items-center gap-1 mt-1">
               <TrendingDown className="h-3 w-3 text-green-500" />

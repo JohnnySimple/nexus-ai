@@ -246,6 +246,25 @@ async def list_documents(user_id: str, limit: int = 50, offset: int = 0):
 #         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
 
+@router.get("/rewrite-query")
+async def rewrite_query(query: str = Query(...)):
+    """
+    Docstring for rewrite_query
+    
+    :param query: Description
+    :type query: str
+    """
+    start_time = time.time()
+
+    results = await rag_helpers.rewrite_query(query)
+
+    end_time = time.time()
+
+    return {
+        "results": results,
+        "response_time": round(end_time - start_time, 2)
+    }
+
 @router.get("/query")
 async def query_documents(
     query: str = Query(...),

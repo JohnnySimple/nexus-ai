@@ -1,6 +1,7 @@
 """Helper functions for RAG services."""
 from fastapi import HTTPException
 import src.helper_functions as helper_functions
+from src.services.ollama_client_service import OllamaClient
 from src.schemas.chat_schema import ChatRequest
 from src.config import settings
 import logging
@@ -65,6 +66,33 @@ def format_history(history: list) -> str:
         formatted_history += f"User: {turn.query}\nAssistant: {turn.response}\n"
     return formatted_history
 
+async def rewrite_query(query: str):
+    try:
+        ollama_client = OllamaClient()
+        
+        prompt_template = helper_functions.get_prompt_rewrite_template()
+        prompt = prompt_template.format(question=query)
+
+        chat_request = ChatRequest(
+            model=settings.OLLAMA_MODEL_MISTRAL,
+            messages=[{"role": "user", "content": prompt}]
+        )
+
+        llm_response = await ollama_client.generate(
+            {
+                "model": chat_request.model,
+                "prompt": prompt
+            }
+        )
+
+        return {
+            "query": query,
+            "final_prompt": prompt,
+            "llm_response": llm_response.get("response", "")
+        }
+    except Exception as e:
+        logger.error(f"Query rewrite generation failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Query rewrite generation failed: {str(e)}")
 
 async def get_query_output(request, context, results, history) -> dict:
     """Generate final output for a RAG query."""
@@ -74,7 +102,6 @@ async def get_query_output(request, context, results, history) -> dict:
             prompt_template = helper_functions.get_rag_prompt_template()
             prompt = prompt_template.format(history=formatted_history, question=request.query, context=context)
 
-            from src.services.ollama_client_service import OllamaClient
             ollama_client = OllamaClient()
 
             chat_request = ChatRequest(

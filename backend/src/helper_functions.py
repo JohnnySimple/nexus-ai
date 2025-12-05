@@ -119,7 +119,7 @@ def open_and_read_pdf(file_path: str) -> str:
         text = page.get_text()
         text = text_formatter(text)
         pages_and_text.append({
-            "page_number": page_number,
+            "page_number": page_number + 1,
             "text": text,
             # "page_char_count": len(text),
             # "page_word_count": len(text.split(" ")),

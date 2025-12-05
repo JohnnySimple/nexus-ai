@@ -29,7 +29,7 @@ class RagService:
         """
         if not isinstance(content, list):
             return [{
-                "page_number": 0,
+                "page_number": 1,
                 "text": content
             }]
         else:

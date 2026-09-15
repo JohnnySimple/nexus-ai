@@ -1,0 +1,16 @@
+# Local environments and artifacts: the image installs its own dependencies.
+venv/
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+
+# Secrets are provided at runtime, not baked into the image.
+.env
+
+# Uploads and test data
+data/
+tests/

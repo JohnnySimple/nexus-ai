@@ -1,389 +1,117 @@
-
+"""Chunk embedding, reranking and vector search."""
+import asyncio
 import logging
-from sentence_transformers import SentenceTransformer, CrossEncoder
-import pickle
+from functools import lru_cache
+
 import torch
+from sentence_transformers import CrossEncoder, SentenceTransformer
 
-from src.config import settings
 import src.helper_functions as helper_functions
-
-from sqlalchemy.ext.asyncio import AsyncSession
-from src.crud.document_crud import (create_document, create_document_with_pages_and_embeddings, search_similar_chunks)
-from src.db.models import Document, Page, ChunkEmbedding
+from src.config import settings
+from src.crud.document_crud import create_document_with_pages_and_embeddings, search_similar_chunks
 from src.db.database import get_session
-
+from src.db.models import ChunkEmbedding, Document, Page
+from src.services.rag_helpers import rank_chunks
 
 logger = logging.getLogger(__name__)
+
 
 class Embeddings:
 
     def __init__(self):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model = SentenceTransformer(settings.SENTENCE_TRANSFORMER_MODEL, device=self.device)
 
-        self.model = SentenceTransformer(settings.SENTENCE_TRANSFORMER_MODEL, self.device)
-        self.storage_path = settings.EMBEDDING_STORAGE_PATH
+        dimension = self.model.get_sentence_embedding_dimension()
+        if dimension != settings.EMBEDDING_DIMENSION:
+            raise RuntimeError(
+                f"{settings.SENTENCE_TRANSFORMER_MODEL} produces {dimension}-d embeddings but "
+                f"EMBEDDING_DIMENSION is {settings.EMBEDDING_DIMENSION}. Update the setting and "
+                "migrate chunk_embeddings.embedding to match."
+            )
+        self._reranker: CrossEncoder | None = None
 
-    def get_file_path(self, file_name: str, document_id: str) -> str:
-        """Get file path for the given file name and document id"""
-        return f"{self.storage_path}/{file_name}_{document_id}.pkl"
+    @property
+    def reranker(self) -> CrossEncoder:
+        """Cross-encoder, loaded once on first use rather than per query."""
+        if self._reranker is None:
+            self._reranker = CrossEncoder(settings.CROSS_ENCODER_MODEL, device=self.device)
+        return self._reranker
 
-    def _split_text(self, text: str) -> list[str]:
-        """Split text into chunks"""
-        splitted_text = text.split("\n")
+    async def save_document(self, *, document_id: str, filename: str, created_at: str, pages: list[dict],
+                            group_id: str, user_id: str) -> None:
+        """Chunk and embed pages, then persist the document with its pages and chunk embeddings."""
+        chunked_pages = helper_functions.create_page_chunks(
+            pages, settings.CHUNK_MAX_TOKENS, settings.CHUNK_OVERLAP_TOKENS, settings.CHUNK_MIN_SENTENCE_LENGTH
+        )
+        all_chunks = [chunk for page in chunked_pages for chunk in page["chunks"]]
+        if not all_chunks:
+            raise ValueError("No extractable text found in document.")
 
-        return [line for line in splitted_text if line.strip() != ""]
-    
+        # Encoding is CPU/GPU bound; run it off the event loop so other requests keep being served.
+        vectors = await asyncio.to_thread(
+            self.model.encode, all_chunks, convert_to_numpy=True, show_progress_bar=False
+        )
 
-    def create_embedding(self, text: str) -> dict:
-    # def create_embedding(self, document: list) -> dict:
-        """Create embedding for the given splitted text"""
-        try:
-            embeddings = []
-            chunks = []
+        pages_to_save = []
+        vector_index = 0
+        for page in chunked_pages:
+            chunk_embeddings = []
+            for chunk in page["chunks"]:
+                chunk_embeddings.append(ChunkEmbedding(chunk_text=chunk, embedding=vectors[vector_index]))
+                vector_index += 1
 
-            # data = helper_functions.create_content_page_chunks(text)
-
-            # for page in data:
-            #     page_embeddings = self.model.encode(page["sentences"])
-            #     embeddings.append(page_embeddings)
-            #     chunks.append(page["sentences"])
-
-            # data = helper_functions.create_semantic_chunks(text)
-            data = helper_functions.create_content_page_chunks_reload(text)
-
-            for page in data:
-                if not page.get("chunks"):
-                    continue
-
-                page_embeddings = self.model.encode(page["chunks"], convert_to_tensor=False)
-                embeddings.append(page_embeddings)
-                chunks.append(page["chunks"])
-
-            # for page in document["content"]:
-            #     page_chunks = helper_functions.create_semantic_chunks([page])
-            #     print(f"page_chunks: {page_chunks}")
-            #     page_embeddings = self.model.encode([page_chunks["text"] for chunk in page_chunks])
-            #     page["chunks"] = page_chunks
-            #     chunks.append(page_chunks)
-            #     embeddings.append(page_embeddings)
-
-            return {
-                "chunks": chunks,
-                "embeddings": embeddings
-            }
-        except Exception as e:
-            logger.error(f"An error occurred embedding document: {e}")
-
-
-    async def save_embedding(self, document, group_id: str, user_id: str):
-        """"
-        Save embedding
-        """
-        try:
-            embedding = self.create_embedding(document["content"])
-            # embedding = self.create_embedding(document)
-            document["embedding"] = embedding["embeddings"]
-            document["chunks"] = embedding["chunks"]
-
-            # if specified persist the document in db
-            if settings.USE_DB:
-                async for session in get_session():
-                    db_document = Document(
-                        id=document["id"],
-                        filename=document["metadata"]["filename"],
-                        created_at=document["metadata"]["created_at"],
-                        document_group_id=group_id,
-                        user_id=user_id
-                    )
-
-                    pages = []
-                    for page_content, page_embeddings, chunk_list in zip(document["content"], document["embedding"], document["chunks"]):
-                        single_page = Page(
-                            page_number=page_content["page_number"],
-                            text=page_content["text"],
-                            sentence_count=len(self._split_text(page_content["text"]))
-                            )
-
-                        single_page_embeddings = []
-                        for chunk_text, embedding_vector in zip(chunk_list, page_embeddings):
-                            single_chunk_embedding = ChunkEmbedding(
-                                chunk_text=chunk_text,
-                                embedding=embedding_vector
-                            )
-                            single_page_embeddings.append(single_chunk_embedding)
-
-                        pages.append({
-                            "page": single_page,
-                            "embeddings": single_page_embeddings
-                            })
-
-                    await create_document_with_pages_and_embeddings(session, db_document, pages)
-            else:
-                # else store as pickle file
-                file_path = self.get_file_path(file_name=document["metadata"]["filename"], document_id=document["id"])
-                with open(file_path, 'wb') as f:
-                    pickle.dump([document], f)
-
-        except Exception as e:
-            logger.error(f"could not save embedding: {e}")
-            raise e
-
-    def save_all_embeddings(self, documents: list[dict]):
-        """Save all embeddings"""
-        try:
-            for document in documents:
-                self.save_embedding(document)
-        except Exception as e:
-            logger.error(f"could not save all embeddings: {e}")
-            return
-        
-    def load_embedding(self) -> list[float]:
-        """
-        Load embedding
-        """
-        try:
-            documents = self.load_pkl_files()
-            return documents
-            # with open(self.storage_path, 'rb') as f:
-            #     loaded_embedding = pickle.load(f)
-
-            # return loaded_embedding
-
-        except Exception as e:
-            logger.warning(f"could not load embedding: {e}")
-            return []
-    
-    def load_pkl_files(self) -> list[dict]:
-        """Load all pickle files from the storage path"""
-        import os
-        documents = []
-        try:
-            for file_name in os.listdir(self.storage_path):
-                if file_name.endswith(".pkl"):
-                    file_path = os.path.join(self.storage_path, file_name)
-                    with open(file_path, 'rb') as f:
-                        loaded_data = pickle.load(f)
-                        documents.extend(loaded_data)
-            return documents
-        except Exception as e:
-            logger.error(f"Failed to load pickle files: {e}")
-            return []
-
-    def delete_embedding(self, document_id: str) -> bool:
-        """Delete embedding file for the given document id"""
-        import os
-        try:
-            for file_name in os.listdir(self.storage_path):
-                if file_name.endswith(f"_{document_id}.pkl"):
-                    file_path = os.path.join(self.storage_path, file_name)
-                    os.remove(file_path)
-                    return True
-            return False
-        except Exception as e:
-            logger.error(f"Failed to delete embedding: {e}")
-            return False
-    
-    def similarity(self, vec1: list[float], vec2: list[float]) -> list[float]:
-        """Get similiarity between two vectors"""
-        return self.model.similarity(vec1, vec2)
-    
-    def get_top_similarities_from_page(self, query: str, page_texts_embeddings,
-                                       page_split, top_k: int = 5, document_id: str = "", page_number: int = 0,
-                                       document_name: str = "") -> list[tuple]:
-        """Get answer to the query from the page texts embeddings"""
-        question_embedding = self.model.encode(query)
-        similarities = self.similarity(page_texts_embeddings, question_embedding)
-
-        sorted_similarities, indices = torch.sort(similarities, dim=0, descending=True)
-        top_similarities = sorted_similarities[:top_k]
-        top_indices = indices[:top_k]
-        top_values = similarities[top_indices]
-
-        top_similarities_answers = [page_split[i] if i < len(page_split) else None
-                                    for i in top_indices]
-
-        # results =  [(document_name, ans, round(float(val), 4), document_id, page_number) for ans, val
-        #             in zip(top_similarities_answers, top_values)]
-        results_dict = [{
-                            "document_name": document_name,
-                            "answer": ans,
-                            "similarity_score": round(float(val), 4),
-                            "document_id": document_id,
-                            "page_number": page_number
-                        }
-                        for ans, val in zip(top_similarities_answers, top_values)]
-        # return results
-        return results_dict
-
-    def search_with_documents(self, query: str, documents: list, top_k: int = 5) -> list[dict]:
-        """Search for similar chunks in all specified documents"""
-        potential_answers = []
-
-        if settings.RERANK_TOP_K:
-            top_k = top_k * 2
-
-        for doc in documents:
-
-            # print(f"keys: {list(doc.keys())}")
-            # print(f"doc: {doc['content'][0]['embedding']}")
-
-            similar_chunks = []
-            
-            # for page_index, page_embedding in enumerate(doc["embedding"]):
-            for page in doc["content"]:
-                similarity = self.get_top_similarities_from_page(query, page["embedding"], page["chunks"], top_k,
-                                                                    document_id=doc["id"], page_number=page["page_number"],
-                                                                    document_name=doc["metadata"]["filename"])
-                
-                if settings.RERANK_TOP_K:
-                    similarity = self.rerank(query, similarity, top_k//2)
-
-                similar_chunks.append(similarity)
-            
-            potential_answers.append({
-                "document": {
-                    "id": doc["id"],
-                    "filename": doc["metadata"]["filename"],
-                    "metadata": doc["metadata"]
-                },
-                "relevant_chunks": similar_chunks
+            pages_to_save.append({
+                "page": Page(page_number=page["page_number"], text=page["text"], sentence_count=page["sentence_count"]),
+                "embeddings": chunk_embeddings,
             })
 
-        return potential_answers
-    
-
-    async def search_with_documents_db(self, query: str, documents: list, top_k: int = 5) -> list[dict]:
-        """Search for similar chunks directly from db"""
-        query_embedding = self.model.encode(query).tolist()
-        page_ids = self.extract_page_ids(documents)
-
-        if settings.RERANK_TOP_K:
-            top_k = top_k * 2
-        
+        document = Document(
+            id=document_id,
+            filename=filename,
+            created_at=created_at,
+            document_group_id=group_id,
+            user_id=user_id
+        )
         async for session in get_session():
-            similar_chunks = await search_similar_chunks(session, query_embedding, page_ids, top_k)
+            await create_document_with_pages_and_embeddings(session, document, pages_to_save)
 
-            if settings.RERANK_TOP_K:
-                    similar_chunks = self.rerank_db(query, similar_chunks, top_k//2)
-            
-            doc_map = {doc["id"]: doc for doc in documents}
-            page_map = {}
-            for doc in documents:
-                for page in doc["pages"]:
-                    page_map[page.id] = {
-                        "page_number": page.page_number,
-                        "document_id": doc["id"],
-                        "document_name": doc["metadata"]["filename"],
-                        "metadata": doc["metadata"]
-                    }
+    async def search(self, query: str, document_ids: list[str], top_k: int) -> list[dict]:
+        """Return the top_k chunks from the given documents for the query, most relevant first."""
+        if not document_ids:
+            return []
 
-            results = []
-            for chunk in similar_chunks:
-                page_info = page_map.get(chunk["page_id"], {})
-                results.append({
-                    "document": {
-                        "id": page_info.get("document_id"),
-                        "filename": page_info.get("document_name"),
-                        "metadata": page_info.get("metadata")
-                    },
-                    # "chunk_id": chunk.id,
-                    # "chunk_text": chunk.chunk_text,
-                    # "similarity": round(float(chunk.distance), 4),
-                    # "document_id": page_info.get("document_id"),
-                    # "document_name": page_info.get("document_name"),
-                    # "page_number": page_info.get("page_number"),
-                    "relevant_chunks": [
-                        {
-                            "document_name": page_info.get("document_name"),
-                            "answer": chunk["chunk_text"],
-                            "similarity_score": round(float(chunk["distance"]), 4),
-                            "document_id": page_info.get("document_id"),
-                            "page_number": page_info.get("page_number"),
-                            "rerank_score": chunk["rerank_score"] if "rerank_score" in chunk else None
-                        }
-                    ]
-                })
-            
-            return results
+        query_vector = await asyncio.to_thread(
+            self.model.encode, query, convert_to_numpy=True, show_progress_bar=False
+        )
+        candidate_count = top_k * 2 if settings.RERANK_TOP_K else top_k
+
+        async for session in get_session():
+            rows = await search_similar_chunks(session, query_vector.tolist(), document_ids, candidate_count)
+
+        chunks = [
+            {
+                "document_name": row["document_name"],
+                "answer": row["chunk_text"],
+                "similarity_score": round(float(row["similarity_score"]), 4),
+                "document_id": row["document_id"],
+                "page_number": row["page_number"],
+                "rerank_score": None,
+            }
+            for row in rows
+        ]
+
+        if settings.RERANK_TOP_K and chunks:
+            scores = await asyncio.to_thread(
+                self.reranker.predict, [(query, chunk["answer"]) for chunk in chunks], show_progress_bar=False
+            )
+            for chunk, score in zip(chunks, scores):
+                chunk["rerank_score"] = round(float(score), 4)
+
+        return rank_chunks(chunks, top_k)
 
 
-            
-
-    def extract_page_ids(self, documents: list[dict]) -> list[str]:
-        """Extract page ids from documents"""
-        page_ids = []
-        for doc in documents:
-            for page in doc["pages"]:
-                page_ids.append(page.id)
-        return page_ids
-        
-    
-    def search(self, query: str, top_k: int = 5, document_ids: list[str] = []) -> list[dict]:
-        """Search for similar chunks in all specified documents"""
-        loaded_embeddings = self.load_embedding()
-
-        potential_answers = []
-
-        if settings.RERANK_TOP_K:
-            top_k = top_k * 2
-
-        for doc in loaded_embeddings:
-            if doc["id"] in document_ids:
-
-                similar_chunks = []
-                
-                for page_index, page_embedding in enumerate(doc["embedding"]):
-                    similarity = self.get_top_similarities_from_page(query, page_embedding, doc["chunks"][page_index], top_k,
-                                                                     document_id=doc["id"], page_number=page_index,
-                                                                     document_name=doc["metadata"]["filename"])
-                    
-                    if settings.RERANK_TOP_K:
-                        similarity = self.rerank(query, similarity, top_k/2)
-
-                    similar_chunks.append(similarity)
-                
-                potential_answers.append({
-                    "document": {
-                        "id": doc["id"],
-                        "filename": doc["metadata"]["filename"],
-                        "metadata": doc["metadata"]
-                    },
-                    "relevant_chunks": similar_chunks
-                })
-
-        return potential_answers
-    
-    def rerank(self, query: str, similarity, top_k) -> list[dict]:
-        """Rerank the top similar chunks using a cross-encoder model"""
-        reranker = CrossEncoder(settings.CROSS_ENCODER_MODEL)
-
-        # pairs = [(query, chunk[0]) for chunk in similarity if chunk[0] is not None]
-        pairs = [(query, chunk["answer"]) for chunk in similarity if chunk["answer"] is not None]
-        scores = reranker.predict(pairs).tolist()
-
-        for index, chunk in enumerate(similarity):
-            # chunk = list(chunk)
-            # chunk.append(scores[index])
-            chunk["rerank_score"] = scores[index]
-            # similarity[index] = tuple(chunk)
-
-        # reranked = sorted(similarity, key=lambda x: x[4], reverse=True)[:int(top_k)]  # x[4] is the new score
-        reranked = sorted(similarity, key=lambda x: x["rerank_score"], reverse=True)[:int(top_k)]
-
-        return reranked
-    
-    def rerank_db(self, query: str, similarity_chunks, top_k) -> list[dict]:
-        """Rerank the top similar chunks from db using a cross-encoder model"""
-        reranker = CrossEncoder(settings.CROSS_ENCODER_MODEL)
-
-        similarity_chunks = [dict(chunk) for chunk in similarity_chunks]
-
-        pairs = [(query, chunk["chunk_text"]) for chunk in similarity_chunks]
-        scores = reranker.predict(pairs).tolist()
-
-        for index, chunk in enumerate(similarity_chunks):
-            chunk["rerank_score"] = scores[index]
-
-        reranked = sorted(similarity_chunks, key=lambda x: x["rerank_score"], reverse=True)[:int(top_k)]  # x.rerank_score is the new score
-
-        return reranked
+@lru_cache(maxsize=1)
+def get_embedding_service() -> Embeddings:
+    """Process-wide embedding service; models load on first call."""
+    return Embeddings()

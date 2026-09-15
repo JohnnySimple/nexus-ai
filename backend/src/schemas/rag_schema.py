@@ -1,4 +1,3 @@
-
 import enum
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
@@ -8,11 +7,6 @@ class Status(enum.Enum):
     SUCCESS = "success"
     FAILURE = "failure"
 
-class DocumentIngestRequest(BaseModel):
-    filename: str = Field(..., description="Name of the document")
-    content: Optional[str] = Field(default=None, description="Text content of the document")
-    metadata: Optional[Dict[str, Any]] = Field(default=None, description="Document metadata")
-
 class DocumentIngestResponse(BaseModel):
     document_id: str = Field(..., description="ID of the ingested document")
     status: Status
@@ -20,37 +14,15 @@ class DocumentIngestResponse(BaseModel):
 class DocumentResponse(BaseModel):
     id: str
     filename: str
-    content: str | List[dict]
+    content: List[dict]
     metadata: Dict[str, Any]
     created_at: str
-    # embeddings: Optional[List[Dict[str, Any]]] = None
 
 class DocumentQueryRequest(BaseModel):
     query: str = Field(..., description="Query text")
     with_llm_response: bool = Field(default=False, description="Whether to include LLM response")
     stream: bool = Field(default=False, description="Whether to stream the response")
-    top_k: int = Field(default=5, description="Number of results to return")
-    filter_metadata: Optional[Dict[str, Any]] = Field(default=None, description="Metadata filters")
-    document_ids: List[str]
-    document_group_ids: Optional[List[str]] = Field(default=None)
-
-class QueryResults(BaseModel):
-    document: Dict
-    relevant_chunks: List[List[dict]]
-
-class DocumentQueryResponse(BaseModel):
-    query: str
-    results: List[QueryResults]
-    context: str
-    final_prompt: Optional[str] = None
-    llm_response: Optional[str] = None
-    time: Optional[float | str] = None
-    query_session: Optional[dict] = None
-
-class DocumentQueryResponseCompared(BaseModel):
-    output: DocumentQueryResponse
-    db_output: dict
-
-class ErrorResponse(BaseModel):
-    message: str
-    status: Status
+    top_k: int = Field(default=5, ge=1, le=50, description="Number of chunks to retrieve")
+    document_ids: List[str] = Field(default_factory=list)
+    document_group_ids: List[str] = Field(default_factory=list)
+    conversation_id: Optional[str] = Field(default=None, description="Existing conversation to continue")

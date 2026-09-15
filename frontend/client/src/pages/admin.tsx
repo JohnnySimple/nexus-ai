@@ -91,7 +91,7 @@ export default function Admin() {
 
   const createMutation = useMutation({
     mutationFn: async (data: AdminCreateUser) => {
-      return apiRequest("POST", "/api/admin/users", data);
+      return apiRequest("POST", `${import.meta.env.VITE_API_BASE_URL}/api/auth/register`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });

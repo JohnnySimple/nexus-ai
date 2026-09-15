@@ -1,6 +1,13 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
+  if (res.status === 401 && localStorage.getItem("auth_token")) {
+    // Token expired or was rejected: clear the stale session and send the user to log in again.
+    localStorage.removeItem("auth_token");
+    localStorage.removeItem("user");
+    window.location.assign("/login");
+  }
+
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
@@ -27,8 +34,6 @@ export async function apiRequest(
     headers["Content-Type"] = "application/json";
     body = JSON.stringify(data);
   }
-
-  console.log(body);
 
   const res = await fetch(url, {
     method,

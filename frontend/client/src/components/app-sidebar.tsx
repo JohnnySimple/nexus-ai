@@ -69,7 +69,7 @@ export function AppSidebar() {
   const [location, setLocation] = useLocation();
   
   const { data: currentUser } = useQuery<User>({
-    queryKey: ["/api/auth/me"],
+    queryKey: [`${import.meta.env.VITE_API_BASE_URL}/api/auth/me`],
   });
 
   const isAdmin = currentUser?.role === "admin";

@@ -31,8 +31,7 @@ export default function DocumentGroup({onDataChange}: {onDataChange?: (data) => 
 
     // get document groups
     useEffect(() => {
-        const user_id = JSON.parse(localStorage.getItem("user")).id;
-        const groups = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/documents/group?user_id=${user_id}`)
+        const groups = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/documents/group`)
         .then((res) => res.json()).then((data) => {
             setGroups(data);
         }).catch((error) => {
@@ -42,8 +41,7 @@ export default function DocumentGroup({onDataChange}: {onDataChange?: (data) => 
 
     // get documents
     useEffect(() => {
-        const user_id = JSON.parse(localStorage.getItem("user")).id;
-        const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents?user_id=${user_id}`)
+        const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents`)
         .then((res) => res.json()).then((data) => {
         setDocuments(data);
         }).catch((error) => {

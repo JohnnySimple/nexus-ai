@@ -1,97 +1,64 @@
 from fastapi import HTTPException
-from src.config import settings
-from src.db.database import get_session
 
-from src.crud.document_crud import get_document_by_id, get_document_group_by_id,\
-    get_all_document_groups_by_user_id, create_document_group, get_total_documents_by_user_id
+import src.helper_functions as helper_functions
+from src.crud import document_crud
+from src.crud.document_crud import VectorStoreStats
+from src.db.database import get_session
+from src.db.models import DocumentGroup
 
 
 class DocumentService:
     """
-    Service for managing documents and document groups.
+    Service for managing documents and document groups. Every operation is scoped to a user.
     """
 
-    def __init__(self):
-        pass
+    async def create_document_group(self, name: str, description: str, color: str, user_id: str) -> DocumentGroup:
+        """Create a new document group"""
+        async for session in get_session():
+            return await document_crud.create_document_group(session, name, description, color, user_id=user_id)
 
-    async def create_document_group(self, name: str, description: str, color: str, user_id: str):
-        """
-        Create a new document group
-        """
-        if settings.USE_DB:
-            async for session in get_session():
-                document_group = await create_document_group(session, name, description, color, user_id=user_id)
-                return document_group
-        else:
-            pass
+    async def get_document_group(self, group_id: str, user_id: str) -> DocumentGroup:
+        """Get a document group owned by the user"""
+        async for session in get_session():
+            document_group = await document_crud.get_document_group_by_id(session, group_id, user_id)
 
-    async def get_document_group(self, id: str) -> dict:
-        """
-        Get document group by id
-        """
-        if settings.USE_DB:
-            async for session in get_session():
-                document_group = await get_document_group_by_id(session, id)
-                
-                if not document_group:
-                    raise HTTPException(status_code=404, detail="Document group not found")
-                
-                return document_group
-        else:
-            pass
+        if not document_group:
+            raise HTTPException(status_code=404, detail="Document group not found")
+        return document_group
 
-    async def list_document_groups(self, user_id, limit: int = 50, offset: int = 0) -> list[dict]:
-        """
-        List all document groups
-        """
+    async def list_document_groups(self, user_id: str) -> list[DocumentGroup]:
+        """List the user's document groups"""
+        async for session in get_session():
+            return await document_crud.get_all_document_groups_by_user_id(session, user_id)
 
-        if settings.USE_DB:
-            async for session in get_session():
-                document_groups = await get_all_document_groups_by_user_id(session, user_id)
-                
-                return document_groups
-        else:
-            pass
+    async def delete_document_group(self, group_id: str, user_id: str) -> None:
+        """Delete a document group together with its documents and stored files"""
+        async for session in get_session():
+            document_group = await document_crud.get_document_group_by_id(session, group_id, user_id)
+            if not document_group:
+                raise HTTPException(status_code=404, detail="Document group not found")
 
-    async def delete_document_group(self, id: str):
-        """
-        Delete document group by id
-        """
-        if settings.USE_DB:
-            async for session in get_session():
-                document_group = await get_document_group_by_id(session, id)
-                
-                if not document_group:
-                    raise HTTPException(status_code=404, detail="Document group not found")
-                
-                await session.delete(document_group)
-                await session.commit()
-                
-                return True
-        else:
-            pass
+            document_ids = [document.id for document in document_group.documents]
+            await document_crud.delete_documents(session, document_ids)
+            await document_crud.delete_document_group(session, group_id)
+            await session.commit()
 
-    async def delete_document(self, id: str):
-        """
-        Delete document by id
-        """
-        if settings.USE_DB:
-            async for session in get_session():
-                document = await get_document_by_id(session, id)
+        for document_id in document_ids:
+            helper_functions.delete_document_file(document_id)
 
-                if not document:
-                    raise HTTPException(status_code=404, detail="Document not found")
-                
-                await session.delete(document)
-                await session.commit()
+    async def delete_document(self, document_id: str, user_id: str) -> None:
+        """Delete a document owned by the user, with its embeddings and stored file"""
+        async for session in get_session():
+            owned = await document_crud.resolve_document_ids(session, user_id, [document_id], [])
+            if not owned:
+                raise HTTPException(status_code=404, detail="Document not found")
 
-                return True
-        else:
-            pass
+            await document_crud.delete_documents(session, owned)
+            await session.commit()
 
-    async def get_total_documents_by_user_id(self, user_id: str) -> int:
-         """Get total documents"""
-         async for session in get_session():
-            count = await get_total_documents_by_user_id(session, user_id)
-            
-            return count
+        helper_functions.delete_document_file(document_id)
+
+    async def get_vector_store_stats(self, user_id: str) -> VectorStoreStats:
+        """Document, page and embedding totals for the user"""
+        async for session in get_session():
+            return await document_crud.get_vector_store_stats(session, user_id)

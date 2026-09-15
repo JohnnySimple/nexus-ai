@@ -42,8 +42,7 @@ export default function Conversation() {
 
   // get documents
   useEffect(() => {
-    const user_id = JSON.parse(localStorage.getItem("user")).id;
-    const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents?user_id=${user_id}`)
+    const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents`)
       .then((res) => res.json()).then((data) => {
         setDocuments(data);
       }).catch((error) => {
@@ -58,9 +57,8 @@ export default function Conversation() {
 
   
   const fetchConversations = async () => {
-    const user_id = JSON.parse(localStorage.getItem("user")).id;
     const conversations = apiRequest("GET",
-      `${import.meta.env.VITE_API_BASE_URL}/api/query/query-session/user/${user_id}?distinct_conversation=true`)
+      `${import.meta.env.VITE_API_BASE_URL}/api/query/query-session?distinct_conversation=true`)
     .then((res) => res.json()).then((data) => {
         setConversations(data);
         chooseConversation(data[0].conversation_id);
@@ -148,7 +146,6 @@ export default function Conversation() {
         query: inputValue,
         // top_k: data.topK,
         with_llm_response: true,
-        user_id: JSON.parse(localStorage.getItem("user")).id,
         // model: data.model,
         conversation_id: conversationIdToPass
       });

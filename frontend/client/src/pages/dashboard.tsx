@@ -40,9 +40,8 @@ export default function Dashboard() {
 
   // get dashbaord stats
     useEffect(() => {
-      const user_id = JSON.parse(localStorage.getItem("user")).id;
       const dashboardStats = apiRequest("GET",
-        `${import.meta.env.VITE_API_BASE_URL}/api/dashboard/stats/${user_id}`)
+        `${import.meta.env.VITE_API_BASE_URL}/api/dashboard/stats`)
       .then((res) => res.json()).then((data) => {
           setStats(data);
       }).catch((error) => {

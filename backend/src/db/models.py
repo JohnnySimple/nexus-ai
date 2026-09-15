@@ -1,8 +1,11 @@
-from sqlmodel import Field, SQLModel, Column, JSON, Relationship
-from typing import Optional, List
-from pgvector.sqlalchemy import Vector
 import uuid
-from datetime import datetime, timezone
+from typing import List, Optional
+
+from pgvector.sqlalchemy import Vector
+from sqlmodel import JSON, Column, Field, Relationship, SQLModel
+
+from src.config import settings
+
 
 class User(SQLModel, table=True):
     __tablename__ = "users"
@@ -22,24 +25,18 @@ class DocumentGroup(SQLModel, table=True):
     description: str
     color: str
     created_at: str
-    user_id: str = Field(foreign_key="users.id", nullable=False)
+    user_id: str = Field(foreign_key="users.id", nullable=False, index=True)
     documents: List["Document"] = Relationship(back_populates="document_group", sa_relationship_kwargs={"cascade": "all, delete"})
 
 class Document(SQLModel, table=True):
     __tablename__ = "documents"
 
-    # id: int | None = Field(default=None, primary_key=True)
-    # content: list[dict]
-    # metadata: dict | None = Field(default=None, sa_column=Column(JSON))
-    # embedding: list
-    # chunks: list
-
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     filename: str
     created_at: str
     pages: List["Page"] = Relationship(back_populates="document", sa_relationship_kwargs={"cascade": "all, delete"})
-    user_id: str = Field(foreign_key="users.id", nullable=False)
-    document_group_id: str = Field(foreign_key="document_groups.id")
+    user_id: str = Field(foreign_key="users.id", nullable=False, index=True)
+    document_group_id: str = Field(foreign_key="document_groups.id", index=True)
     document_group: Optional[DocumentGroup] = Relationship(back_populates="documents")
     rag_settings: "RagSetting" = Relationship(back_populates="document", sa_relationship_kwargs={"cascade": "all, delete"})
 
@@ -51,7 +48,7 @@ class Page(SQLModel, table=True):
     page_number: int
     text: str
     sentence_count: int
-    document_id: str = Field(foreign_key="documents.id")
+    document_id: str = Field(foreign_key="documents.id", index=True)
 
     document: Optional[Document] = Relationship(back_populates="pages")
     embeddings: List["ChunkEmbedding"] = Relationship(back_populates="page", sa_relationship_kwargs={"cascade": "all, delete"})
@@ -62,8 +59,8 @@ class ChunkEmbedding(SQLModel, table=True):
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
     chunk_text: str
-    embedding: list[float] = Field(sa_column=Column(Vector(384)))
-    page_id: str = Field(foreign_key="pages.id")
+    embedding: list[float] = Field(sa_column=Column(Vector(settings.EMBEDDING_DIMENSION)))
+    page_id: str = Field(foreign_key="pages.id", index=True)
 
     page: Optional[Page] = Relationship(back_populates="embeddings")
 
@@ -93,9 +90,8 @@ class QuerySession(SQLModel, table=True):
     temperature: Optional[float]
     chunk_size: Optional[int]
     chunk_overlap: Optional[int]
-    # retrieved_chunks: List[str] = Field(sa_column_kwargs={"type_": "TEXT[]"})
-    retrieved_chunks: list[str] = Field(sa_column=Column(JSON), default_factory=list)
+    retrieved_chunks: list[dict] = Field(sa_column=Column(JSON), default_factory=list)
     created_at: str
     response_time: Optional[float]
-    user_id: str = Field(foreign_key="users.id", nullable=False)
+    user_id: str = Field(foreign_key="users.id", nullable=False, index=True)
     document_ids: list[str] = Field(sa_column=Column(JSON), default_factory=list)

@@ -1,153 +1,108 @@
 """Rag Service Module"""
-from fastapi import HTTPException
-from src.services.embeddings import Embeddings
 import time
-import uuid
-import logging
+from typing import AsyncIterator
+
+from fastapi import HTTPException
 
 from src.config import settings
-from src.crud.document_crud import get_all_documents_by_user_id, get_document_by_id, get_documents_by_ids, get_document_ids_by_group_ids
-from sqlalchemy.ext.asyncio import AsyncSession
+from src.crud import document_crud
 from src.db.database import get_session
-import src.services.rag_helpers as rag_helpers
+from src.db.models import Document, User
+from src.schemas.query_schema import QuerySessionCreateRequest
+from src.schemas.rag_schema import DocumentQueryRequest
+from src.services import rag_helpers
+from src.services.embeddings import get_embedding_service
+from src.services.query_service import QueryService, serialize_query_session
 
-logger = logging.getLogger(__name__)
 
 class RagService:
-    
     """
-    This module provides functionalities for RAG (Retrieval-Augmented Generation).
+    Document ingestion and the retrieval-augmented query pipeline.
     """
 
-    def __init__(self):
-        self.embedding_service = Embeddings()
+    def __init__(self, query_service: QueryService | None = None):
+        self.query_service = query_service or QueryService()
 
+    async def ingest_document(self, *, document_id: str, filename: str, pages: list[dict],
+                              group_id: str, user_id: str) -> str:
+        """Chunk, embed and store a document"""
+        await get_embedding_service().save_document(
+            document_id=document_id,
+            filename=filename,
+            created_at=time.strftime("%Y-%m-%d %H:%M:%S"),
+            pages=pages,
+            group_id=group_id,
+            user_id=user_id,
+        )
+        return document_id
 
-    def get_paginated_data(self, content):
+    async def get_document(self, document_id: str, user_id: str) -> Document:
+        """Get a document owned by the user"""
+        async for session in get_session():
+            document = await document_crud.get_document_by_id(session, document_id, user_id)
+
+        if not document:
+            raise HTTPException(status_code=404, detail="Document not found")
+        return document
+
+    async def list_documents(self, user_id: str) -> list[Document]:
+        """List the user's documents"""
+        async for session in get_session():
+            return await document_crud.get_all_documents_by_user_id(session, user_id)
+
+    async def answer_query_events(self, request: DocumentQueryRequest, user: User) -> AsyncIterator[dict]:
         """
-        Paginate content if not already paginated
+        Run retrieval, optional generation and persistence for a query.
+        Yields {"event": "status"} progress events, then a single {"event": "result"} with the output.
+        Streaming and non-streaming endpoints both use this, so they cannot drift apart.
         """
-        if not isinstance(content, list):
-            return [{
-                "page_number": 1,
-                "text": content
-            }]
-        else:
-            return content
-        
-    
-    async def ingest_document(self, content: str, metadata: dict, group_id: str, user_id: str, document_id: str) -> str:
-        """
-        Ingest a document into the RAG system.
-        """
-        try:
-            metadata["created_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        start_time = time.perf_counter()
 
-            document = {
-                "id": document_id,
-                "content": content,
-                "metadata": metadata
-            }
+        history = []
+        if request.conversation_id:
+            history = await self.query_service.get_query_sessions_by_conversation_id(request.conversation_id, user.id)
 
-            await self.embedding_service.save_embedding(document, group_id, user_id)
+        yield {"event": "status", "data": {"message": "Retrieving relevant chunks"}}
+        async for session in get_session():
+            document_ids = await document_crud.resolve_document_ids(
+                session, user.id, request.document_ids, request.document_group_ids or []
+            )
+        chunks = await get_embedding_service().search(request.query, document_ids, request.top_k)
+        context = rag_helpers.build_context(chunks)
 
-            return document_id
-        except Exception as e:
-            logger.error(f"Document ingestion failed: {e}")
-            raise e
-    
-    async def get_document(self, id: str) -> dict:
-        """
-        Get document by id
-        """
-        if settings.USE_DB:
-            async for session in get_session():
-                document = await get_document_by_id(session, id)
-                
-                if not document:
-                    raise HTTPException(status_code=404, detail="Document not found")
-                
-                full_document = await rag_helpers.get_full_document(document)
+        output = {
+            "query": request.query,
+            "results": [
+                {"document": {"id": chunk["document_id"], "filename": chunk["document_name"]}, "relevant_chunks": [chunk]}
+                for chunk in chunks
+            ],
+            "context": context,
+        }
 
-                return full_document
-        else:
-            pass
-    
-    async def get_multiple_documents(self, ids: list, document_group_ids: list[str] = None) -> list:
-        """
-        Get documents by list of ids
-        """
-        if settings.USE_DB:
-            async for session in get_session():
-                if document_group_ids:
-                    doc_ids_from_group_ids = await get_document_ids_by_group_ids(session, document_group_ids)
-                    for doc_id in doc_ids_from_group_ids:
-                        if doc_id not in ids:
-                            ids.append(doc_id)
+        if request.with_llm_response:
+            yield {"event": "status", "data": {"message": "Generating response"}}
+            prompt, answer = await rag_helpers.generate_answer(request.query, context, history)
+            output["final_prompt"] = prompt
+            output["llm_response"] = answer
 
-                documents = await get_documents_by_ids(session, ids)
-                document_list = []
+        query_session = await self.query_service.create_query_session(QuerySessionCreateRequest(
+            query=request.query,
+            response=output.get("llm_response", ""),
+            model=settings.DEFAULT_LLM_MODEL,
+            top_k=request.top_k,
+            retrieved_chunks=chunks,
+            user_id=user.id,
+            document_ids=document_ids,
+            conversation_id=request.conversation_id or None,
+            response_time=round(time.perf_counter() - start_time, 2),
+        ))
+        output["query_session"] = serialize_query_session(query_session)
 
-                for doc in documents:
-                    single_document = await rag_helpers.get_full_document(doc)
-                                        
-                    document_list.append(single_document)
-                return {
-                    "document_list": document_list,
-                    "updated_document_ids": ids
-                }
-        else:
-            pass
+        yield {"event": "result", "data": output}
 
-
-    async def list_documents(self, user_id: str, limit: int = 50, offset: int = 0) -> list[dict]:
-        """
-        List all ingested documents
-        """
-
-        if settings.USE_DB:
-            async for session in get_session():
-                documents = await get_all_documents_by_user_id(session, user_id)
-                document_list = []
-
-                for doc in documents:
-                    single_document = await rag_helpers.get_full_document(doc)   
-                    document_list.append(single_document)
-                return document_list
-        else:
-            documents = []
-
-            try:
-                loaded_data = self.embedding_service.load_embedding()
-                for doc in loaded_data:
-                    documents.append(doc)
-                return documents
-            except Exception as e:
-                logger.error(f"Failed to list documents: {e}")
-    
-    async def query_documents(self, query: str, top_k: int = 5, document_ids: list[str] = None, document_group_ids: list[str] = None):
-        """Query documents in the RAG system."""
-        try:
-            documents = await self.get_multiple_documents(document_ids, document_group_ids)
-            if settings.USE_DB:
-                # results = self.embedding_service.search_with_documents(query, documents["document_list"], top_k)
-                db_results = await self.embedding_service.search_with_documents_db(query, documents["document_list"], top_k)
-                return {
-                    # "results": results,
-                    "db_results": db_results,
-                    "updated_document_ids": documents["updated_document_ids"]
-                }
-            else:
-                pass
-        except Exception as e:
-            logger.error(f"Document query failed: {e}")
-    
-    async def delete_document(self, document_id: str) -> bool:
-        """
-        Delete a document from the RAG system.
-        """
-        try:
-            return self.embedding_service.delete_embedding(document_id)
-        except Exception as e:
-            logger.error(f"Failed to delete document: {e}")
-            return False
+    async def answer_query(self, request: DocumentQueryRequest, user: User) -> dict:
+        """Run the query pipeline to completion and return its result"""
+        async for event in self.answer_query_events(request, user):
+            if event["event"] == "result":
+                return event["data"]
+        raise RuntimeError("Query pipeline finished without a result")

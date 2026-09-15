@@ -61,8 +61,7 @@ export default function Query() {
 
   // get sessions
   useEffect(() => {
-    const user_id = JSON.parse(localStorage.getItem("user")).id;
-    const sessions = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/query/query-session/user/${user_id}`)
+    const sessions = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/query/query-session`)
       .then((res) => res.json()).then((data) => {
         setSessions(data);
       }).catch((error) => {
@@ -112,7 +111,6 @@ export default function Query() {
         top_k: data.topK,
         // document_ids: data.documentIds,
         with_llm_response: true,
-        user_id: JSON.parse(localStorage.getItem("user")).id,
         model: data.model
       });
 

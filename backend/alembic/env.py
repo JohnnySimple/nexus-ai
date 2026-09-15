@@ -4,16 +4,11 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
+from src.config import settings
 from src.db.models import SQLModel
 
-from dotenv import load_dotenv
-import os
-
-load_dotenv()
-
-DATABASE_URL = (
-    f"postgresql://{os.getenv('DB_USER')}:{os.getenv('DB_PASSWORD')}@{os.getenv('DB_HOST')}/{os.getenv('DB_NAME')}"
-)
+# Migrations run synchronously through psycopg2, so drop the async driver from the app's URL.
+DATABASE_URL = settings.DATABASE_URL.replace("+asyncpg", "")
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

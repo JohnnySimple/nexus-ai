@@ -64,8 +64,7 @@ export default function Documents() {
 
   // get document groups
     useEffect(() => {
-      const user_id = JSON.parse(localStorage.getItem("user")).id;
-      const groups = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/documents/group?user_id=${user_id}`)
+      const groups = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/documents/group`)
         .then((res) => res.json()).then((data) => {
           setDocumentGroups(data);
         }).catch((error) => {
@@ -75,8 +74,7 @@ export default function Documents() {
 
     // get documents
     useEffect(() => {
-      const user_id = JSON.parse(localStorage.getItem("user")).id;
-      const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents?user_id=${user_id}`)
+      const documents = apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents`)
         .then((res) => res.json()).then((data) => {
           setDocuments(data);
           setIsLoading(false)
@@ -89,8 +87,7 @@ export default function Documents() {
     mutationFn: async ({ file, groupId }: {file: File; groupId?: string}) => {
       const formData = new FormData();
       formData.append("file", file);
-      const user_id = JSON.parse(localStorage.getItem("user")).id;
-      return apiRequest("POST", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents/upload?group_id=${groupId}&user_id=${user_id}`, formData);
+      return apiRequest("POST", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents/upload?group_id=${groupId}`, formData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
@@ -113,8 +110,7 @@ export default function Documents() {
   const createGroupMutation = useMutation({
     mutationFn: async (data: DocumentGroupFormData) => {
       // return apiRequest("POST", "/api/document-groups", data);
-      const user_id = JSON.parse(localStorage.getItem("user")).id;
-      return apiRequest("POST", `${import.meta.env.VITE_API_BASE_URL}/api/documents/group?name=${encodeURIComponent(data.name)}&description=${encodeURIComponent(data.description || "")}&color=${encodeURIComponent(data.color)}&user_id=${user_id}`, {});
+      return apiRequest("POST", `${import.meta.env.VITE_API_BASE_URL}/api/documents/group?name=${encodeURIComponent(data.name)}&description=${encodeURIComponent(data.description || "")}&color=${encodeURIComponent(data.color)}`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/document-groups"] });
@@ -271,8 +267,19 @@ export default function Documents() {
                         <FileText className="h-4 w-4 text-muted-foreground" />
                         {/* <span data-testid={`document-name-${doc.id}`}>{doc.filename}</span> */}
                         <button
-                          onClick={() => {
-                            window.open(`${import.meta.env.VITE_API_BASE_URL}/api/rag/documents/${doc.id}/download`, '_blank')
+                          onClick={async () => {
+                            // The download route requires the auth header, which a plain window.open can't send.
+                            // Open the tab synchronously so popup blockers allow it, then point it at the fetched file.
+                            const viewer = window.open("", "_blank");
+                            try {
+                              const res = await apiRequest("GET", `${import.meta.env.VITE_API_BASE_URL}/api/rag/documents/${doc.id}/download`);
+                              const url = URL.createObjectURL(await res.blob());
+                              if (viewer) viewer.location.href = url;
+                              setTimeout(() => URL.revokeObjectURL(url), 60_000);
+                            } catch (error) {
+                              viewer?.close();
+                              toast({ title: "Could not open document", variant: "destructive" });
+                            }
                           }}>
                           {doc.filename}
                         </button>

@@ -1,93 +1,61 @@
-from fastapi import APIRouter, Query, HTTPException, UploadFile, File
-from src.services.rag_service import RagService
-from src.services.document_service import DocumentService
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, Query
+
+from src.api.deps import get_current_user
+from src.db.models import DocumentGroup, User
 from src.schemas.document_schema import DocumentGroupResponse
-from typing import List, Optional, Dict, Any
+from src.services.document_service import DocumentService
 
-import logging
-
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 document_service = DocumentService()
 
+
+def to_group_response(group: DocumentGroup) -> DocumentGroupResponse:
+    return DocumentGroupResponse(
+        id=group.id,
+        name=group.name,
+        description=group.description,
+        color=group.color,
+        created_at=group.created_at,
+        documents=[{"id": doc.id, "filename": doc.filename} for doc in group.documents] if group.documents else None
+    )
+
+
 @router.post("/group")
-async def create_document_group(name: str = Query(...), description: Optional[str] = Query(default=None), color: str = Query(...), user_id: str = Query(...)):
+async def create_document_group(
+    name: str = Query(...),
+    description: Optional[str] = Query(default=None),
+    color: str = Query(...),
+    current_user: User = Depends(get_current_user),
+):
     """Create a new document group."""
-    try:
-        group = await document_service.create_document_group(name, description, color, user_id)
-        return {"status": "success", "group_id": group.id}
-    except Exception as e:
-        logger.error(f"Error creating document group: {e}")
-        raise HTTPException(status_code=500, detail="Failed to create document group.")
+    group = await document_service.create_document_group(name, description or "", color, current_user.id)
+    return {"status": "success", "group_id": group.id}
 
 
 @router.get("/group", response_model=List[DocumentGroupResponse])
-async def list_document_groups(user_id: str, limit: int = 50, offset: int = 0):
+async def list_document_groups(current_user: User = Depends(get_current_user)):
     """List all document groups."""
-    try:
-        document_groups = await document_service.list_document_groups(user_id=user_id, limit=limit, offset=offset)
+    return [to_group_response(group) for group in await document_service.list_document_groups(current_user.id)]
 
-        return [
-            DocumentGroupResponse(
-                id=group.id,
-                name=group.name,
-                description=group.description,
-                color=group.color,
-                created_at=group.created_at,
-                documents=[{"id": doc.id, "filename": doc.filename} for doc in group.documents] if group.documents else None
-            )
-            for group in document_groups
-        ]
-
-    except Exception as e:
-        logger.error(f"Failed to list documents: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to list documents: {str(e)}")
-    
 
 @router.get("/group/{id}", response_model=DocumentGroupResponse)
-async def get_document_group(id: str):
+async def get_document_group(id: str, current_user: User = Depends(get_current_user)):
     """Get document group by id."""
-    try:
-        group = await document_service.get_document_group(id)
-
-        return DocumentGroupResponse(
-            id=group.id,
-            name=group.name,
-            description=group.description,
-            color=group.color,
-            created_at=group.created_at,
-            documents=[{"id": doc.id, "filename": doc.filename} for doc in group.documents] if group.documents else None
-        )
-
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        logger.error(f"Failed to get document group: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get document group.")
+    return to_group_response(await document_service.get_document_group(id, current_user.id))
 
 
 @router.delete("/group/{id}")
-async def delete_document_group(id: str):
-    """Delete document group by id."""
-    try:
-        await document_service.delete_document_group(id)
-        return {"status": "success", "message": "Document group deleted successfully."}
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        logger.error(f"Failed to delete document group: {e}")
-        raise HTTPException(status_code=500, detail="Failed to delete document group.")
+async def delete_document_group(id: str, current_user: User = Depends(get_current_user)):
+    """Delete document group by id, including its documents."""
+    await document_service.delete_document_group(id, current_user.id)
+    return {"status": "success", "message": "Document group deleted successfully."}
 
 
 @router.delete("/{id}")
-async def delete_document(id: str):
+async def delete_document(id: str, current_user: User = Depends(get_current_user)):
     """Delete document by id."""
-    try:
-        await document_service.delete_document(id)
-        return {"status": "success", "message": "Document deleted successfully."}
-    except HTTPException as he:
-        raise he
-    except Exception as e:
-        logger.error(f"Failed to delete document: {e}")
-        raise HTTPException(status_code=500, detail="Failed to delete document.")
+    await document_service.delete_document(id, current_user.id)
+    return {"status": "success", "message": "Document deleted successfully."}

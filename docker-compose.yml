@@ -6,6 +6,9 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    # Secrets and connection strings are injected at runtime; .dockerignore keeps .env out of the image.
+    env_file:
+      - ./backend/.env
     environment:
       - PYTHONUNBUFFERED="1"
     networks:

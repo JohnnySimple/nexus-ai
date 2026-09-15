@@ -1,12 +1,10 @@
 """Query crud operations"""
 import time
-from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select, func, text, delete, cast, DateTime
-from sqlalchemy.orm import selectinload
+from sqlmodel import select, func, delete, cast, DateTime
 from src.db.models import QuerySession
 from src.schemas.query_schema import QuerySessionCreateRequest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 async def create_query_session(session: AsyncSession,
@@ -38,20 +36,18 @@ async def create_query_session(session: AsyncSession,
     return query_session
 
 
-async def get_query_session_by_id(session: AsyncSession, id: str) -> QuerySession | None:
-    """Retrieve a query session by its ID"""
-    result = await session.execute(select(QuerySession).where(QuerySession.id == id))
-    query_session = result.scalar_one_or_none()
-    return query_session
+async def get_query_session_by_id(session: AsyncSession, id: str, user_id: str) -> QuerySession | None:
+    """Retrieve a query session owned by the user"""
+    result = await session.execute(
+        select(QuerySession).where(QuerySession.id == id, QuerySession.user_id == user_id)
+    )
+    return result.scalar_one_or_none()
 
 
 async def get_query_sessions_by_user_id(session: AsyncSession, user_id: str,
-                                        distinct_conversation: bool = False) -> QuerySession | None:
+                                        distinct_conversation: bool = False) -> list[QuerySession]:
     """Retrieve query sessions by user id"""
     if distinct_conversation:
-        # results = await session.execute(select(QuerySession).distinct(QuerySession.conversation_id)
-        #                                 .where(QuerySession.user_id == user_id)
-        #                                 .order_by(QuerySession.conversation_id, QuerySession.created_at.desc()))
         row_number = func.row_number().over(
             partition_by=QuerySession.conversation_id,
             order_by=QuerySession.created_at.asc()
@@ -75,17 +71,18 @@ async def get_query_sessions_by_user_id(session: AsyncSession, user_id: str,
         results = await session.execute(select(QuerySession)
                                         .where(QuerySession.user_id == user_id)
                                         .order_by(QuerySession.created_at.desc()))
-    query_sessions = results.scalars().all()
-    return query_sessions
+    return results.scalars().all()
 
 
-async def get_query_sessions_by_conversation_id(session: AsyncSession,
-                                                conversation_id: str) -> list[QuerySession] | None:
-    """Retrieve query sessions by conversation id"""
-    results = await session.execute(select(QuerySession)
-                                    .where(QuerySession.conversation_id == conversation_id))
-    query_sessions = results.scalars().all()
-    return query_sessions
+async def get_query_sessions_by_conversation_id(session: AsyncSession, conversation_id: str,
+                                                user_id: str) -> list[QuerySession]:
+    """Retrieve a user's conversation turns, oldest first"""
+    results = await session.execute(
+        select(QuerySession)
+        .where(QuerySession.conversation_id == conversation_id, QuerySession.user_id == user_id)
+        .order_by(QuerySession.created_at.asc())
+    )
+    return results.scalars().all()
 
 
 async def get_total_query_sessions_by_user_id(session: AsyncSession, user_id: str) -> int:
@@ -98,16 +95,19 @@ async def get_average_response_time_by_user_id(session: AsyncSession, user_id: s
     results = await session.execute(select(func.avg(QuerySession.response_time)).where(QuerySession.user_id == user_id))
     return results.scalar_one() or 0.0
 
+def _window_start(days: int) -> datetime:
+    # created_at is stored as a naive "YYYY-MM-DD HH:MM:SS" string, so compare against a naive timestamp.
+    return datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
+
 async def get_daily_average_response_times_by_user_id(session: AsyncSession, user_id: str, limit: int = 7) -> list[tuple[str, float]]:
     """Retrieve daily average response times by user id"""
-    start_date = datetime.utcnow() - timedelta(days=limit)
     created_at_ts = cast(QuerySession.created_at, DateTime)
     results = await session.execute(
         select(
             func.date(QuerySession.created_at),
             func.coalesce(func.avg(QuerySession.response_time), 0.0)
         ).where(QuerySession.user_id == user_id)
-         .where(created_at_ts >= start_date)
+         .where(created_at_ts >= _window_start(limit))
          .group_by(func.date(QuerySession.created_at))
          .order_by(func.date(QuerySession.created_at))
     )
@@ -115,27 +115,22 @@ async def get_daily_average_response_times_by_user_id(session: AsyncSession, use
 
 async def get_daily_query_counts_by_user_id(session: AsyncSession, user_id: str, limit: int = 7) -> list[tuple[str, int]]:
     """Retrieve daily query counts by user id"""
-    start_date = datetime.utcnow() - timedelta(days=limit)
     created_at_ts = cast(QuerySession.created_at, DateTime)
     results = await session.execute(
         select(
             func.date(QuerySession.created_at),
             func.count()
         ).where(QuerySession.user_id == user_id)
-         .where(created_at_ts >= start_date)
+         .where(created_at_ts >= _window_start(limit))
          .group_by(func.date(QuerySession.created_at))
          .order_by(func.date(QuerySession.created_at))
     )
     return results.all()
 
-async def delete_conversation_by_conversation_id(session: AsyncSession, conversation_id: str) -> bool:
-    """Delete conversation by conversation id"""
-    conversations = await get_query_sessions_by_conversation_id(session, conversation_id)
-
-    if not conversations:
-        raise HTTPException(status_code=404, detail="No conversations found.")
-    
-    await session.execute(delete(QuerySession).where(QuerySession.conversation_id == conversation_id))
+async def delete_conversation_by_conversation_id(session: AsyncSession, conversation_id: str, user_id: str) -> int:
+    """Delete a user's conversation; returns the number of turns deleted"""
+    result = await session.execute(
+        delete(QuerySession).where(QuerySession.conversation_id == conversation_id, QuerySession.user_id == user_id)
+    )
     await session.commit()
-
-    return True
+    return result.rowcount

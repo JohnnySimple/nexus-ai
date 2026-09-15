@@ -464,10 +464,17 @@ export default function Conversation() {
                                     </div>
                                 )}
                                 <p
-                                    className={`text-xs "text-muted-foreground" mt-2`}
-                                    data-testid={`text-timestamp-${turn.id}`}
+                                  className={`text-xs "text-muted-foreground" mt-2`}
+                                  data-testid={`text-timestamp-${turn.id}`}
                                 >
-                                    {formatTime(new Date(turn.created_at))}
+                                  {formatTime(new Date(turn.created_at))}
+                                </p>
+
+                                <p
+                                  className={`text-xs "text-muted-foreground" mt-2`}
+                                  data-testid={`text-timestamp-${turn.id}`}
+                                >
+                                  {`${turn.response_time}s`}
                                 </p>
                             </div>
                         </Card>

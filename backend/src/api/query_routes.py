@@ -1,0 +1,107 @@
+from fastapi import APIRouter, Query, HTTPException
+from src.services.query_service import QueryService
+from src.schemas.query_schema import QuerySessionCreateRequest
+
+import logging
+import ast
+import json
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+query_service = QueryService()
+
+@router.post("/query-session")
+async def create_query_session(request: QuerySessionCreateRequest):
+    """Create a query session"""
+
+    try:
+        query_session = await query_service.create_query_session(request)
+        return query_session
+    except Exception as e:
+        logger.error(f"Error creating query session: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create query session.")
+    
+
+@router.get("/query-session/{id}")
+async def get_query_session_by_id(id: str):
+    """Get query session by id."""
+    try:
+        query_session = await query_service.get_query_session_by_id(id)
+
+        return query_session
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Failed to get query session: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get query session.")
+    
+@router.get("/query-session/user/{user_id}")
+async def get_query_sessions_by_user_id(user_id: str, distinct_conversation: bool = False):
+    """Get query session by user id."""
+    try:
+        query_sessions = await query_service.get_query_sessions_by_user_id(user_id, distinct_conversation)
+
+        for s in query_sessions:
+            val = s.retrieved_chunks
+            try:
+                val = json.loads(val)
+            except json.JSONDecodeError:
+                pass
+
+            if isinstance(val, str):
+                try:
+                    val = ast.literal_eval(val)
+                except Exception:
+                    val = []
+            
+            s.retrieved_chunks = val
+
+        return query_sessions
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Failed to get query session: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get query session.")
+    
+@router.get("/query-session/conversation/{conversation_id}")
+async def get_query_sessions_by_conversation_id(conversation_id: str):
+    """Get query sessions by conversation id"""
+    try:
+        query_sessions = await query_service.get_query_sessions_by_conversation_id(conversation_id)
+
+        for s in query_sessions:
+            val = s.retrieved_chunks
+            try:
+                val = json.loads(val)
+            except json.JSONDecodeError:
+                pass
+
+            if isinstance(val, str):
+                try:
+                    val = ast.literal_eval(val)
+                except Exception:
+                    val = []
+            
+            s.retrieved_chunks = val
+
+        return query_sessions
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Failed to get query sessions: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get query session.")
+
+@router.delete("/query-session/conversation/{conversation_id}")
+async def delete_conversation(conversation_id: str):
+    """Delete conversation by conversation id."""
+    try:
+        await query_service.delete_conversation_by_conversation_id(conversation_id)
+        return {"status": "success", "message": "Conversation deleted successfully."}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Failed to delete conversation: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete conversation.")

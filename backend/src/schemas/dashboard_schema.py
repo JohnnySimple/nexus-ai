@@ -1,0 +1,18 @@
+
+from pydantic import BaseModel, Field
+from typing import Optional
+
+class StatsResponse(BaseModel):
+    query_count: int
+    document_count: int
+    total_documents: int
+    total_chunks: int
+    total_embeddings: int
+    total_pages: int
+    dimensionality: int
+    disk_usage_mb: float
+    health_status: str
+    last_updated: Optional[str] = None
+    average_response_time: Optional[float] = Field(None, description="Average response time in seconds")
+    daily_average_response_times: Optional[list] = Field(None, description="Daily average response times in seconds")
+    daily_query_counts: Optional[list] = Field(None, description="Daily query counts")

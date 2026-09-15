@@ -1,25 +1,113 @@
 
-from fastapi import APIRouter, Query, HTTPException
+import os
+from pathlib import Path
+from fastapi import APIRouter, Query, HTTPException, UploadFile, File
 from starlette.responses import StreamingResponse
+from fastapi.responses import FileResponse
 
 from typing import List, Optional, Dict, Any
+import uuid
 import logging
 
 from src.schemas.rag_schema import DocumentIngestRequest, DocumentIngestResponse,\
-    Status, DocumentResponse, DocumentQueryRequest, DocumentQueryResponse, ErrorResponse
+    Status, DocumentResponse, DocumentQueryRequest, DocumentQueryResponse, DocumentQueryResponseCompared, ErrorResponse
 from src.schemas.chat_schema import ChatRequest
 
 from src.services.rag_service import RagService
+from src.services.query_service import QueryService
+from src.schemas.query_schema import QuerySessionCreateRequest
 from src.config import settings
 import src.helper_functions as helper_functions
 import src.services.rag_helpers as rag_helpers
 
+import requests
+import json
 import time
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 rag_service = RagService()
+query_service = QueryService()
+
+@router.post("/documents/upload", response_model=DocumentIngestResponse)
+async def upload_document(file: UploadFile = File(...), group_id: str = Query(...), user_id: str = Query(...)):
+    """Upload and ingest a document into the RAG system."""
+    try:
+        doc_type = helper_functions.get_file_type(file.filename)
+        document_id = str(uuid.uuid4())
+        filename = file.filename.split("/")[-1]
+
+        if doc_type not in settings.SUPPORTED_FILE_TYPES:
+            raise HTTPException(status_code=400, detail=f"Unsupported file type. Supported types are {settings.SUPPORTED_FILE_TYPES}.")
+        
+        # # determine user os
+        # if os.name == "nt":
+        #     documents_dir = Path(os.environ.get("USERPROFILE"), '') / 'Documents' / settings.LOCAL_DOCUMENT_DIRECTORY_NAME
+        # else:
+        #     documents_dir = Path.home() / 'Documents' / settings.LOCAL_DOCUMENT_DIRECTORY_NAME
+
+        # permanent_file_path = documents_dir / f"{document_id}_{filename}"
+
+        # with open(permanent_file_path, "wb") as f:
+        #     f.write(await file.read())
+
+        temp_file_path = os.path.join(settings.TEMP_UPLOAD_DIR, file.filename)
+        with open(temp_file_path, "wb") as f:
+            f.write(await file.read())
+
+        content = helper_functions.get_file_content(temp_file_path)
+
+        helper_functions.save_file_to_permanent_location(
+            temp_file_path=os.path.join(settings.TEMP_UPLOAD_DIR, file.filename),
+            document_id=document_id,
+            file_name=filename
+        )
+
+        paginated_data = rag_service.get_paginated_data(content)
+
+        doc_id = await rag_service.ingest_document(
+            content=paginated_data,
+            metadata={
+                "filename": filename,
+                # **(request.metadata or {})
+            },
+            group_id=group_id,
+            user_id=user_id,
+            document_id=document_id
+        )
+        
+        return DocumentIngestResponse(
+            document_id=doc_id,
+            status=Status.SUCCESS
+        )
+        
+    except Exception as e:
+        logger.error(f"Error ingesting document: {e}")
+        return {"error": str(e)}
+
+@router.get("/documents/{document_id}/download")
+async def download_document(document_id: str):
+    """Serve document file for viewing or downloading."""
+    try:
+        file_path = helper_functions.get_document_file_path(document_id)
+
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail=f"Document: {document_id} file not found.")
+        
+        return FileResponse(path=file_path,
+                            filename=os.path.basename(file_path),
+                            media_type='application/pdf',
+                            headers={"Content-Disposition": f"inline; filename={os.path.basename(file_path)}"})
+        # return {
+        #     "file_path": file_path
+        # }
+    except FileNotFoundError:
+        logger.error(f"Document file not found for ID: {document_id}")
+        raise HTTPException(status_code=404, detail=f"Document: {document_id} file not found.")
+    except Exception as e:
+        logger.error(f"Failed to download document: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to load document: {str(e)}")
 
 @router.post("/ingest", response_model=DocumentIngestResponse)
 async def ingest_document(request: DocumentIngestRequest):
@@ -103,10 +191,10 @@ async def get_document(document_id: str):
         raise HTTPException(status_code=500, detail=f"Failed to get document: {str(e)}")
 
 @router.get("/documents", response_model=List[DocumentResponse])
-async def list_documents(limit: int = 50, offset: int = 0):
+async def list_documents(user_id: str, limit: int = 50, offset: int = 0):
     """List all ingested documents."""
     try:
-        documents = await rag_service.list_documents(limit=limit, offset=offset)
+        documents = await rag_service.list_documents(user_id=user_id, limit=limit, offset=offset)
 
         # if settings.USE_DB:
         return [
@@ -144,36 +232,62 @@ async def list_documents(limit: int = 50, offset: int = 0):
         logger.error(f"Failed to list documents: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to list documents: {str(e)}")
 
-@router.delete("/documents/{document_id}")
-async def delete_document(document_id: str):
-    """Delete a document from the RAG system."""
-    try:
-        success = await rag_service.delete_document(document_id)
-        if success:
-            return {"status": "Document deleted successfully"}
-        else:
-            raise HTTPException(status_code=404, detail="Document not found")
-    except Exception as e:
-        logger.error(f"Failed to delete document: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
+# @router.delete("/documents/{document_id}")
+# async def delete_document(document_id: str):
+#     """Delete a document from the RAG system."""
+#     try:
+#         success = await rag_service.delete_document(document_id)
+#         if success:
+#             return {"status": "Document deleted successfully"}
+#         else:
+#             raise HTTPException(status_code=404, detail="Document not found")
+#     except Exception as e:
+#         logger.error(f"Failed to delete document: {e}")
+#         raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
 
 
-@router.get("/query", response_model=DocumentQueryResponse)
+@router.get("/rewrite-query")
+async def rewrite_query(query: str = Query(...)):
+    """
+    Docstring for rewrite_query
+    
+    :param query: Description
+    :type query: str
+    """
+    start_time = time.time()
+
+    results = await rag_helpers.rewrite_query(query)
+
+    end_time = time.time()
+
+    return {
+        "results": results,
+        "response_time": round(end_time - start_time, 2)
+    }
+
+@router.get("/query")
 async def query_documents(
     query: str = Query(...),
     top_k: int = Query(5),
     document_ids: List[str] = Query([]),
+    document_group_ids: List[str] = Query([]),
     with_llm_response: bool = Query(False),
-    stream: bool = Query(False)
+    stream: bool = Query(False),
+    model: Optional[str] = "",
+    user_id: str = "",
+    conversation_id: str = ""
 ):
+    """Query documents in the RAG system."""
+    start_time = time.time()
+
     request = DocumentQueryRequest(
         query=query,
         top_k=top_k,
         document_ids=document_ids,
+        document_group_ids=document_group_ids,
         with_llm_response=with_llm_response,
         stream=stream
     )
-    """Query documents in the RAG system."""
 
     if request.stream:
         from src.api.rag_stream import query_docs
@@ -182,48 +296,70 @@ async def query_documents(
     results = await rag_service.query_documents(
         query=request.query,
         top_k=request.top_k,
-        document_ids=request.document_ids
+        document_ids=request.document_ids,
+        document_group_ids=request.document_group_ids
     )
 
-    context = rag_helpers.build_context(results, request)
-    output = await rag_helpers.get_query_output(request, context, results)
-    return output
+    # retrieve conversation history
+    history = []
+    if conversation_id:
+        history = await query_service.get_query_sessions_by_conversation_id(conversation_id)
 
-    # if request.with_llm_response:
-    #     try:
-    #         prompt_template = helper_functions.get_rag_prompt_template()
-    #         prompt = prompt_template.format(question=request.query, context=context)
+    # context = rag_helpers.build_context(results["results"], request)
+    db_context = rag_helpers.build_context_db(results["db_results"], request)
+    
+    # output = await rag_helpers.get_query_output(request, context, results["results"], history)
+    db_output = await rag_helpers.get_query_output(request, db_context, results["db_results"], history)
 
-    #         from src.services.ollama_client_service import OllamaClient
-    #         ollama_client = OllamaClient()
+    # save query session
+    # relevant_chunks = [chunk for doc in output["results"] for chunk in doc["relevant_chunks"]]
+    relevant_chunks = [chunk for doc in db_output["results"] for chunk in doc["relevant_chunks"]]
 
-    #         chat_request = ChatRequest(
-    #             model=settings.OLLAMA_MODEL_MISTRAL,
-    #             messages=[{"role": "user", "content": prompt}]
-    #         )
+    # query_session_payload = QuerySessionCreateRequest(
+    #     query=query,
+    #     response=output["llm_response"],
+    #     model=model,
+    #     top_k=top_k,
+    #     retrieved_chunks=str(relevant_chunks),
+    #     user_id=user_id,
+    #     document_ids=results["updated_document_ids"],
+    #     conversation_id=conversation_id
+    # )
 
-    #         llm_response = await ollama_client.generate(
-    #             {
-    #                 "model": chat_request.model,
-    #                 "prompt": prompt
-    #             }
-    #         )
+    end_time = time.time()
 
-    #         return {
-    #             "query": request.query,
-    #             "results": results,
-    #             # "results_content": results_content,
-    #             "context": context,
-    #             "final_prompt": prompt,
-    #             "llm_response": llm_response.get("response", "")
-    #         }
-    #     except Exception as e:
-    #         logger.error(f"LLM response generation failed: {e}")
-    #         raise HTTPException(status_code=500, detail=f"LLM response generation failed: {str(e)}")
-    # else:
-    #     return {
-    #         "query": request.query,
-    #         "results": results,
-    #         # "results_content": results_content,
-    #         "context": context,
-    #     }
+    query_session_payload = QuerySessionCreateRequest(
+        query=query,
+        response=db_output["llm_response"],
+        model=model,
+        top_k=top_k,
+        retrieved_chunks=str(relevant_chunks),
+        user_id=user_id,
+        document_ids=results["updated_document_ids"],
+        conversation_id=conversation_id,
+        response_time=round(end_time - start_time, 2)
+    )
+
+    query_session = await query_service.create_query_session(query_session_payload)
+    # output["query_session"] = query_session.model_dump()
+    db_output["query_session"] = query_session.model_dump()
+
+    # return {"output": output, "db_output": db_output}
+    return db_output
+
+
+@router.get("/llms")
+async def list_available_llms():
+    """List all available LLMs."""
+    try:
+
+        response = requests.get(f"{settings.OLLAMA_API_URL}/api/tags")
+
+        text = response.text
+
+        if response.status_code == 200:
+            return json.loads(text)
+
+    except Exception as e:
+        logger.error(f"Failed to list available LLMs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list available LLMs: {str(e)}")

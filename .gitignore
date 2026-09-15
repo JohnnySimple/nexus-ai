@@ -3,7 +3,24 @@
 __pycache__
 /venv
 
+/backend/.env
+/backend/.venv
+/frontend/.env
+
+/frontend/node_modules
+node_modules
+
+
 /sample-docs
+
+# frontend
+node_modules
+dist
+.DS_Store
+server/public
+vite.config.ts.*
+*.tar.gz
+.local
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -21,7 +38,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+# lib/
+# !client/src/lib
 lib64/
 parts/
 sdist/

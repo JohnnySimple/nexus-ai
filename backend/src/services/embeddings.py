@@ -8,8 +8,9 @@ from src.config import settings
 import src.helper_functions as helper_functions
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.crud.document_crud import (create_document, create_document_with_pages_and_embeddings)
+from src.crud.document_crud import (create_document, create_document_with_pages_and_embeddings, search_similar_chunks)
 from src.db.models import Document, Page, ChunkEmbedding
+from src.db.database import get_session
 
 
 logger = logging.getLogger(__name__)
@@ -74,7 +75,7 @@ class Embeddings:
             logger.error(f"An error occurred embedding document: {e}")
 
 
-    async def save_embedding(self, document):
+    async def save_embedding(self, document, group_id: str, user_id: str):
         """"
         Save embedding
         """
@@ -86,13 +87,13 @@ class Embeddings:
 
             # if specified persist the document in db
             if settings.USE_DB:
-                from src.db.database import get_session
-                
                 async for session in get_session():
                     db_document = Document(
                         id=document["id"],
                         filename=document["metadata"]["filename"],
-                        created_at=document["metadata"]["created_at"]
+                        created_at=document["metadata"]["created_at"],
+                        document_group_id=group_id,
+                        user_id=user_id
                     )
 
                     pages = []
@@ -187,7 +188,8 @@ class Embeddings:
         return self.model.similarity(vec1, vec2)
     
     def get_top_similarities_from_page(self, query: str, page_texts_embeddings,
-                                       page_split, top_k: int = 5, document_id: str = "", page_number: int = 0) -> list[tuple]:
+                                       page_split, top_k: int = 5, document_id: str = "", page_number: int = 0,
+                                       document_name: str = "") -> list[tuple]:
         """Get answer to the query from the page texts embeddings"""
         question_embedding = self.model.encode(query)
         similarities = self.similarity(page_texts_embeddings, question_embedding)
@@ -200,9 +202,18 @@ class Embeddings:
         top_similarities_answers = [page_split[i] if i < len(page_split) else None
                                     for i in top_indices]
 
-        results =  [(ans, round(float(val), 4), document_id, page_number) for ans, val
-                    in zip(top_similarities_answers, top_values)]
-        return results
+        # results =  [(document_name, ans, round(float(val), 4), document_id, page_number) for ans, val
+        #             in zip(top_similarities_answers, top_values)]
+        results_dict = [{
+                            "document_name": document_name,
+                            "answer": ans,
+                            "similarity_score": round(float(val), 4),
+                            "document_id": document_id,
+                            "page_number": page_number
+                        }
+                        for ans, val in zip(top_similarities_answers, top_values)]
+        # return results
+        return results_dict
 
     def search_with_documents(self, query: str, documents: list, top_k: int = 5) -> list[dict]:
         """Search for similar chunks in all specified documents"""
@@ -213,18 +224,19 @@ class Embeddings:
 
         for doc in documents:
 
-            print(f"keys: {list(doc.keys())}")
-            print(f"doc: {doc['content'][0]['embedding']}")
+            # print(f"keys: {list(doc.keys())}")
+            # print(f"doc: {doc['content'][0]['embedding']}")
 
             similar_chunks = []
             
             # for page_index, page_embedding in enumerate(doc["embedding"]):
             for page in doc["content"]:
                 similarity = self.get_top_similarities_from_page(query, page["embedding"], page["chunks"], top_k,
-                                                                    document_id=doc["id"], page_number=page["page_number"])
+                                                                    document_id=doc["id"], page_number=page["page_number"],
+                                                                    document_name=doc["metadata"]["filename"])
                 
                 if settings.RERANK_TOP_K:
-                    similarity = self.rerank(query, similarity, top_k/2)
+                    similarity = self.rerank(query, similarity, top_k//2)
 
                 similar_chunks.append(similarity)
             
@@ -238,6 +250,72 @@ class Embeddings:
             })
 
         return potential_answers
+    
+
+    async def search_with_documents_db(self, query: str, documents: list, top_k: int = 5) -> list[dict]:
+        """Search for similar chunks directly from db"""
+        query_embedding = self.model.encode(query).tolist()
+        page_ids = self.extract_page_ids(documents)
+
+        if settings.RERANK_TOP_K:
+            top_k = top_k * 2
+        
+        async for session in get_session():
+            similar_chunks = await search_similar_chunks(session, query_embedding, page_ids, top_k)
+
+            if settings.RERANK_TOP_K:
+                    similar_chunks = self.rerank_db(query, similar_chunks, top_k//2)
+            
+            doc_map = {doc["id"]: doc for doc in documents}
+            page_map = {}
+            for doc in documents:
+                for page in doc["pages"]:
+                    page_map[page.id] = {
+                        "page_number": page.page_number,
+                        "document_id": doc["id"],
+                        "document_name": doc["metadata"]["filename"],
+                        "metadata": doc["metadata"]
+                    }
+
+            results = []
+            for chunk in similar_chunks:
+                page_info = page_map.get(chunk["page_id"], {})
+                results.append({
+                    "document": {
+                        "id": page_info.get("document_id"),
+                        "filename": page_info.get("document_name"),
+                        "metadata": page_info.get("metadata")
+                    },
+                    # "chunk_id": chunk.id,
+                    # "chunk_text": chunk.chunk_text,
+                    # "similarity": round(float(chunk.distance), 4),
+                    # "document_id": page_info.get("document_id"),
+                    # "document_name": page_info.get("document_name"),
+                    # "page_number": page_info.get("page_number"),
+                    "relevant_chunks": [
+                        {
+                            "document_name": page_info.get("document_name"),
+                            "answer": chunk["chunk_text"],
+                            "similarity_score": round(float(chunk["distance"]), 4),
+                            "document_id": page_info.get("document_id"),
+                            "page_number": page_info.get("page_number"),
+                            "rerank_score": chunk["rerank_score"] if "rerank_score" in chunk else None
+                        }
+                    ]
+                })
+            
+            return results
+
+
+            
+
+    def extract_page_ids(self, documents: list[dict]) -> list[str]:
+        """Extract page ids from documents"""
+        page_ids = []
+        for doc in documents:
+            for page in doc["pages"]:
+                page_ids.append(page.id)
+        return page_ids
         
     
     def search(self, query: str, top_k: int = 5, document_ids: list[str] = []) -> list[dict]:
@@ -256,7 +334,8 @@ class Embeddings:
                 
                 for page_index, page_embedding in enumerate(doc["embedding"]):
                     similarity = self.get_top_similarities_from_page(query, page_embedding, doc["chunks"][page_index], top_k,
-                                                                     document_id=doc["id"], page_number=page_index)
+                                                                     document_id=doc["id"], page_number=page_index,
+                                                                     document_name=doc["metadata"]["filename"])
                     
                     if settings.RERANK_TOP_K:
                         similarity = self.rerank(query, similarity, top_k/2)
@@ -278,14 +357,33 @@ class Embeddings:
         """Rerank the top similar chunks using a cross-encoder model"""
         reranker = CrossEncoder(settings.CROSS_ENCODER_MODEL)
 
-        pairs = [(query, chunk[0]) for chunk in similarity if chunk[0] is not None]
+        # pairs = [(query, chunk[0]) for chunk in similarity if chunk[0] is not None]
+        pairs = [(query, chunk["answer"]) for chunk in similarity if chunk["answer"] is not None]
         scores = reranker.predict(pairs).tolist()
 
         for index, chunk in enumerate(similarity):
-            chunk = list(chunk)
-            chunk.append(scores[index])
-            similarity[index] = tuple(chunk)
+            # chunk = list(chunk)
+            # chunk.append(scores[index])
+            chunk["rerank_score"] = scores[index]
+            # similarity[index] = tuple(chunk)
 
-        reranked = sorted(similarity, key=lambda x: x[4], reverse=True)[:int(top_k)]  # x[4] is the new score
+        # reranked = sorted(similarity, key=lambda x: x[4], reverse=True)[:int(top_k)]  # x[4] is the new score
+        reranked = sorted(similarity, key=lambda x: x["rerank_score"], reverse=True)[:int(top_k)]
+
+        return reranked
+    
+    def rerank_db(self, query: str, similarity_chunks, top_k) -> list[dict]:
+        """Rerank the top similar chunks from db using a cross-encoder model"""
+        reranker = CrossEncoder(settings.CROSS_ENCODER_MODEL)
+
+        similarity_chunks = [dict(chunk) for chunk in similarity_chunks]
+
+        pairs = [(query, chunk["chunk_text"]) for chunk in similarity_chunks]
+        scores = reranker.predict(pairs).tolist()
+
+        for index, chunk in enumerate(similarity_chunks):
+            chunk["rerank_score"] = scores[index]
+
+        reranked = sorted(similarity_chunks, key=lambda x: x["rerank_score"], reverse=True)[:int(top_k)]  # x.rerank_score is the new score
 
         return reranked

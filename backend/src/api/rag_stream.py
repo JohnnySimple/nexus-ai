@@ -17,7 +17,8 @@ async def query_docs(request: DocumentQueryRequest):
     results = await rag_service.query_documents(
         query=request.query,
         top_k=request.top_k,
-        document_ids=request.document_ids
+        document_ids=request.document_ids,
+        document_group_ids=request.document_group_ids
     )
 
     yield("data: Retrieving relevant documents.\n\n")

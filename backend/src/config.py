@@ -32,7 +32,7 @@ class Config(CustomBaseSettings):
     OLLAMA_API_URL: str = os.getenv("LLM_URL")
     OLLAMA_MODEL_MISTRAL: str = "mistral"
 
-    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ORIGINS: list[str] = ["http://localhost:5001", "http://127.0.0.1:5001"]
     CORS_HEADERS: list[str] = ["*"]
 
     SUPPORTED_FILE_TYPES: list[str] = ["txt", "pdf", "docx"]
@@ -46,6 +46,13 @@ class Config(CustomBaseSettings):
     DATABASE_URL: str = os.getenv("DATABASE_URL")
 
     USE_DB: bool = True
+
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY")
+    JWT_ALGORITHM: str = "HS256"
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    LOCAL_DOCUMENT_DIRECTORY_NAME: str = "nexus_ai_uploads"
+    TEMP_UPLOAD_DIR: str = "data/temp_uploads"
 
     class Config:
         env_file = ".env"

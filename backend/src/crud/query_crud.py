@@ -1,0 +1,141 @@
+"""Query crud operations"""
+import time
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import select, func, text, delete, cast, DateTime
+from sqlalchemy.orm import selectinload
+from src.db.models import QuerySession
+from src.schemas.query_schema import QuerySessionCreateRequest
+from datetime import datetime, timedelta
+
+
+async def create_query_session(session: AsyncSession,
+                               payload: QuerySessionCreateRequest) -> QuerySession:
+    """
+    Create a new query session
+    """
+    query_session = QuerySession(
+        query=payload.query,
+        response=payload.response,
+        model=payload.model,
+        top_k=payload.top_k,
+        temperature=payload.temperature,
+        chunk_size=payload.chunk_size,
+        chunk_overlap=payload.chunk_overlap,
+        retrieved_chunks=payload.retrieved_chunks,
+        created_at=time.strftime("%Y-%m-%d %H:%M:%S"),
+        response_time=payload.response_time,
+        user_id=payload.user_id,
+        document_ids=payload.document_ids
+    )
+
+    if payload.conversation_id:
+        query_session.conversation_id = payload.conversation_id
+
+    session.add(query_session)
+    await session.commit()
+    await session.refresh(query_session)
+    return query_session
+
+
+async def get_query_session_by_id(session: AsyncSession, id: str) -> QuerySession | None:
+    """Retrieve a query session by its ID"""
+    result = await session.execute(select(QuerySession).where(QuerySession.id == id))
+    query_session = result.scalar_one_or_none()
+    return query_session
+
+
+async def get_query_sessions_by_user_id(session: AsyncSession, user_id: str,
+                                        distinct_conversation: bool = False) -> QuerySession | None:
+    """Retrieve query sessions by user id"""
+    if distinct_conversation:
+        # results = await session.execute(select(QuerySession).distinct(QuerySession.conversation_id)
+        #                                 .where(QuerySession.user_id == user_id)
+        #                                 .order_by(QuerySession.conversation_id, QuerySession.created_at.desc()))
+        row_number = func.row_number().over(
+            partition_by=QuerySession.conversation_id,
+            order_by=QuerySession.created_at.asc()
+        ).label("rn")
+
+        subq = (
+            select(QuerySession.id.label("id"), row_number)
+            .where(QuerySession.user_id == user_id)
+            .subquery()
+        )
+
+        stmt = (
+            select(QuerySession)
+            .join(subq, QuerySession.id == subq.c.id)
+            .where(subq.c.rn == 1) # keep only first per conversation
+            .order_by(QuerySession.created_at.desc())
+        )
+
+        results = await session.execute(stmt)
+    else:
+        results = await session.execute(select(QuerySession)
+                                        .where(QuerySession.user_id == user_id)
+                                        .order_by(QuerySession.created_at.desc()))
+    query_sessions = results.scalars().all()
+    return query_sessions
+
+
+async def get_query_sessions_by_conversation_id(session: AsyncSession,
+                                                conversation_id: str) -> list[QuerySession] | None:
+    """Retrieve query sessions by conversation id"""
+    results = await session.execute(select(QuerySession)
+                                    .where(QuerySession.conversation_id == conversation_id))
+    query_sessions = results.scalars().all()
+    return query_sessions
+
+
+async def get_total_query_sessions_by_user_id(session: AsyncSession, user_id: str) -> int:
+    """Retrieve total query sessions by user id"""
+    results = await session.execute(select(func.count()).select_from(QuerySession).where(QuerySession.user_id == user_id))
+    return results.scalar_one()
+
+async def get_average_response_time_by_user_id(session: AsyncSession, user_id: str) -> float:
+    """Retrieve average response time by user id"""
+    results = await session.execute(select(func.avg(QuerySession.response_time)).where(QuerySession.user_id == user_id))
+    return results.scalar_one() or 0.0
+
+async def get_daily_average_response_times_by_user_id(session: AsyncSession, user_id: str, limit: int = 7) -> list[tuple[str, float]]:
+    """Retrieve daily average response times by user id"""
+    start_date = datetime.utcnow() - timedelta(days=limit)
+    created_at_ts = cast(QuerySession.created_at, DateTime)
+    results = await session.execute(
+        select(
+            func.date(QuerySession.created_at),
+            func.coalesce(func.avg(QuerySession.response_time), 0.0)
+        ).where(QuerySession.user_id == user_id)
+         .where(created_at_ts >= start_date)
+         .group_by(func.date(QuerySession.created_at))
+         .order_by(func.date(QuerySession.created_at))
+    )
+    return results.all()
+
+async def get_daily_query_counts_by_user_id(session: AsyncSession, user_id: str, limit: int = 7) -> list[tuple[str, int]]:
+    """Retrieve daily query counts by user id"""
+    start_date = datetime.utcnow() - timedelta(days=limit)
+    created_at_ts = cast(QuerySession.created_at, DateTime)
+    results = await session.execute(
+        select(
+            func.date(QuerySession.created_at),
+            func.count()
+        ).where(QuerySession.user_id == user_id)
+         .where(created_at_ts >= start_date)
+         .group_by(func.date(QuerySession.created_at))
+         .order_by(func.date(QuerySession.created_at))
+    )
+    return results.all()
+
+async def delete_conversation_by_conversation_id(session: AsyncSession, conversation_id: str) -> bool:
+    """Delete conversation by conversation id"""
+    conversations = await get_query_sessions_by_conversation_id(session, conversation_id)
+
+    if not conversations:
+        raise HTTPException(status_code=404, detail="No conversations found.")
+    
+    await session.execute(delete(QuerySession).where(QuerySession.conversation_id == conversation_id))
+    await session.commit()
+
+    return True

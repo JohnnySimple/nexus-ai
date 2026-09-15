@@ -2,7 +2,7 @@ services:
   backend:
     container_name: nexus-backend
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
@@ -18,8 +18,23 @@ services:
       python -m uvicorn src.main:app
       --host 0.0.0.0
       --reload
-    volumes:
-      - .:/app
+    # volumes:
+    #   - .:/app
+
+  frontend:
+    container_name: nexus-frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "5001:5001"
+    networks:
+      - nexus-network
+    restart: unless-stopped
+    env_file:
+      - ./frontend/.env
 
 networks:
   nexus-network:
